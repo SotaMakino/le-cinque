@@ -11,7 +11,9 @@
       "Bash(git commit *)",
       "Bash(go build *)",
       "Bash(go vet *)",
-      "Bash(go test *)"
+      "Bash(go test *)",
+      "Bash(git mv *)",
+      "Bash(pnpm *)"
     ]
   }
 }

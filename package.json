@@ -1,0 +1,10 @@
+{
+  "name": "hello-go",
+  "private": true,
+  "scripts": {
+    "dev:api": "cd apps/api && go run .",
+    "dev:web": "pnpm --filter web dev",
+    "test:api": "cd apps/api && go test ./...",
+    "build:web": "pnpm --filter web build"
+  }
+}
