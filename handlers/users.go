@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 type User struct {
@@ -30,13 +31,23 @@ func (h *Users) Get(w http.ResponseWriter, r *http.Request) {
 func (h *Users) Create(w http.ResponseWriter, r *http.Request) {
 	var u User
 	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	if _, err := h.DB.Exec("INSERT INTO users (id, name) VALUES (?, ?)", u.ID, u.Name); err != nil {
-		http.Error(w, "could not create user", http.StatusInternalServerError)
+	if msg := u.validate(); msg != "" {
+		writeError(w, http.StatusBadRequest, msg)
 		return
 	}
+	_, err := h.DB.Exec("INSERT INTO users (id, name) VALUES (?, ?)", u.ID, u.Name)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			writeError(w, http.StatusConflict, "user already exists") // 409!
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "could not create user")
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(u)
 }
@@ -77,4 +88,23 @@ func (h *Users) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	u.ID = r.PathValue("id")
 	json.NewEncoder(w).Encode(u)
+}
+
+func writeError(w http.ResponseWriter, code int, msg string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+func (u *User) validate() string {
+	if strings.TrimSpace(u.ID) == "" {
+		return "id is required"
+	}
+	if strings.TrimSpace(u.Name) == "" {
+		return "name is required"
+	}
+	if len(u.Name) > 100 {
+		return "name must be 100 characters or fewer"
+	}
+	return ""
 }
