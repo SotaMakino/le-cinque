@@ -2,3 +2,4 @@ app.db
 node_modules/
 dist/
 cookies.txt
+hello-api
