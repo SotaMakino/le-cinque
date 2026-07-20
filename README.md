@@ -1,6 +1,9 @@
 # hello-go
 
-Bun monorepo: a per-user todo app with a Go REST API and a Vite + ReScript (React) client.
+Bun monorepo: **Parole**, a Wordle clone with Italian five-letter words, built as
+a Go REST API plus a Vite + ReScript (React) client. Each user gets their own
+games behind cookie-session auth; guesses are scored server-side so the answer
+never reaches the browser until the game is over.
 
 ```
 apps/
@@ -38,9 +41,17 @@ Runs on http://localhost:8080. Environment variables:
 | `DATABASE_URL`   | `postgres://localhost:5432/hellodb` |
 | `ALLOWED_ORIGIN` | `http://localhost:5173` (CORS)      |
 
-Endpoints: `POST /signup`, `POST /login`, `POST /logout` (public), and
-`GET/POST /todos`, `DELETE /todos/{id}` (session cookie required, scoped to
-the logged-in user).
+Endpoints: `POST /signup`, `POST /login`, `POST /logout` (public), and — with a
+session cookie, scoped to the logged-in user:
+
+- `GET /game` — current game state (starts one if the user has none)
+- `POST /game` — new game, once the current one is won or lost
+- `POST /game/guess` — submit `{"guess": "fiore"}`; the response scores each
+  letter as `correct` / `present` / `absent` and reveals the answer only when
+  the game ends
+
+The answer pool and guess dictionary are the embedded Italian word list in
+`apps/api/handlers/words.go`.
 
 ## Run the client (web)
 
