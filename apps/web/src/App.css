@@ -103,24 +103,17 @@
   margin: 0.15rem 0 0;
 }
 
-/* --- Clue card --- */
+/* --- Tries --- */
 
-.clue {
+.tries {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  margin: 1.5rem auto 0;
-  padding: 0.7rem 1.25rem;
-  width: max-content;
-  max-width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--accent-border);
-  border-radius: 12px;
-  background: var(--accent-bg);
+  gap: 0.5rem;
+  margin: 1.25rem auto 0;
 }
 
-.clue-label {
+.tries-label {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -128,44 +121,68 @@
   color: var(--accent);
 }
 
-.clue-text {
+.try-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.try-dot.spent {
+  background: none;
+  border: 2px solid var(--border);
+  box-sizing: border-box;
+}
+
+.wrong-letters {
+  font-size: 13px;
+  margin-left: 0.5rem;
+  letter-spacing: 2px;
+}
+
+/* --- Word pairs --- */
+
+.pairs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: max-content;
+  max-width: 100%;
+  margin: 1.25rem auto 0;
+}
+
+.pair-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.italian {
+  width: 9.5rem;
+  text-align: right;
   font-size: 20px;
   font-weight: 600;
+  letter-spacing: 1px;
   color: var(--text-h);
 }
 
-/* --- Board --- */
-
-.board {
+.english-tiles {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: max-content;
-  margin: 1.5rem auto 0;
-}
-
-.board-row {
-  display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 
 .tile {
-  width: 58px;
-  height: 58px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: 2px solid var(--border);
   border-radius: 6px;
-  font-size: 28px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text-h);
-  transition: transform 0.08s, background 0.15s, border-color 0.15s;
-}
-
-.tile.filled {
-  border-color: var(--accent-border);
-  transform: scale(1.04);
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .tile.correct {
@@ -174,88 +191,23 @@
   color: #fff;
 }
 
-.tile.present {
-  background: #b59f3b;
-  border-color: #b59f3b;
-  color: #fff;
-}
-
-.tile.absent {
-  background: #787c7e;
-  border-color: #787c7e;
-  color: #fff;
-}
-
-@media (max-width: 480px) {
-  .tile {
-    width: 48px;
-    height: 48px;
-    font-size: 24px;
+@media (max-width: 640px) {
+  .pair-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
   }
-}
 
-/* --- Keyboard --- */
+  .italian {
+    width: auto;
+    text-align: left;
+    font-size: 16px;
+  }
 
-.keyboard {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 1.5rem;
-}
-
-.kb-row {
-  display: flex;
-  justify-content: center;
-  gap: 5px;
-}
-
-.key {
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  height: 52px;
-  flex: 0 1 42px;
-  min-width: 30px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: var(--code-bg);
-  color: var(--text-h);
-  cursor: pointer;
-  transition: filter 0.15s, background 0.15s;
-}
-
-.key:hover {
-  filter: brightness(0.92);
-}
-
-.key.wide {
-  flex: 0 1 68px;
-  min-width: 52px;
-  font-size: 12px;
-}
-
-.key.correct {
-  background: #538d4e;
-  color: #fff;
-}
-
-.key.present {
-  background: #b59f3b;
-  color: #fff;
-}
-
-.key.absent {
-  background: #787c7e;
-  color: #fff;
-  opacity: 0.65;
-}
-
-@media (prefers-color-scheme: dark) {
-  .tile.absent,
-  .key.absent {
-    background: #3a3a3c;
-    border-color: #3a3a3c;
+  .tile {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
   }
 }
 
