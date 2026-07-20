@@ -1,15 +1,20 @@
 # parole
 
-Bun monorepo: **Parole**, a Wordle-style trainer for beginner Italian
+Bun monorepo: **Parole**, a letter-reveal trainer for beginner Italian
 vocabulary, built as a Go REST API plus a Vite + ReScript (React) client. Each
-round shows an English clue and you type the Italian five-letter word in five
-tries with Wordle feedback. It leans on research-backed techniques: retrieval
-practice (you recall the word from its meaning), cognates first (the curriculum
-starts with Italian words an English speaker can almost guess), immediate
-feedback, and spaced repetition (missed words return three rounds later).
+round shows five Italian words on the left with their English translations
+hidden on the right — only the word lengths are visible. Type a letter: if it
+occurs anywhere in the English words, every occurrence is revealed at once;
+if it hits nothing, it costs one of five tries. Reveal all five words before
+running out.
 
-Each user gets their own progress behind cookie-session auth; guesses are
-scored server-side so the answer never reaches the browser until the game is
+It leans on research-backed techniques: retrieval practice (you recall the
+English from the Italian), cognates first (the curriculum starts with Italian
+words an English speaker can almost guess), immediate feedback, and spaced
+repetition (a missed round's words return three rounds later).
+
+Each user gets their own progress behind cookie-session auth; letters are
+checked server-side so the answers never reach the browser until the round is
 over.
 
 ```
@@ -51,17 +56,18 @@ Runs on http://localhost:8080. Environment variables:
 Endpoints: `POST /signup`, `POST /login`, `POST /logout` (public), and — with a
 session cookie, scoped to the logged-in user:
 
-- `GET /game` — current game state, including the English clue (starts a game
-  if the user has none)
-- `POST /game` — new game, once the current one is won or lost
-- `POST /game/guess` — submit `{"guess": "fiore"}`; the response scores each
-  letter as `correct` / `present` / `absent` and reveals the answer only when
-  the game ends
+- `GET /game` — current round: five Italian words with per-letter reveal
+  state for their English translations, tried letters, and tries left (starts
+  a round if the user has none)
+- `POST /game` — new round, once the current one is won or lost
+- `POST /game/guess` — submit one letter as `{"guess": "a"}`; a hit reveals
+  every occurrence across all five words, a miss costs a try, and the full
+  answers appear only when the round ends
 
-The curriculum (Italian word + English clue, cognates first) lives in
-`apps/api/handlers/words.go` and doubles as the guess dictionary. New games
-pick the next word server-side: a word lost at least three rounds ago comes
-back for review, otherwise the first not-yet-played word in curriculum order.
+The curriculum (Italian word + English translation, cognates first) lives in
+`apps/api/handlers/words.go`. New rounds pick five words server-side: words
+from a round lost at least three rounds ago come back for review, otherwise
+the next not-yet-played words in curriculum order.
 
 ## Run the client (web)
 
