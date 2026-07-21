@@ -692,14 +692,22 @@ let make = () => {
             ? React.null
             : <div className="banner">
                 <p> {React.string(g.status == "won" ? tr.wonBanner : tr.lostBanner)} </p>
-                <button
-                  type_="button" className="ghost" disabled=busy onClick={_ => retryGame()->ignore}>
-                  {React.string(tr.retry)}
-                </button>
-                <button
-                  type_="button" className="primary" disabled=busy onClick={_ => newGame()->ignore}>
-                  {React.string(tr.newGame)}
-                </button>
+                <div className="banner-actions">
+                  <button
+                    type_="button"
+                    className="ghost"
+                    disabled=busy
+                    onClick={_ => retryGame()->ignore}>
+                    {React.string(tr.retry)}
+                  </button>
+                  <button
+                    type_="button"
+                    className="primary"
+                    disabled=busy
+                    onClick={_ => newGame()->ignore}>
+                    {React.string(tr.newGame)}
+                  </button>
+                </div>
               </div>}
         </>
       }
