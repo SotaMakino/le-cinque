@@ -14,10 +14,20 @@
   margin-bottom: 1.25rem;
 }
 
+/* newspaper-masthead serif for the game title */
 .app-header h1 {
-  font-size: 32px;
-  letter-spacing: -0.5px;
+  font-family: Didot, 'Bodoni MT', 'Playfair Display', Georgia, 'Times New Roman', serif;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
   margin: 0;
+}
+
+/* the "five" deserves the spotlight */
+.app-header .cinque {
+  color: var(--accent);
+  font-size: 42px;
+  font-style: italic;
 }
 
 /* --- Buttons --- */

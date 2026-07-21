@@ -275,7 +275,10 @@ let make = () => {
     <main className="app">
       <header className="app-header">
         <div>
-          <h1> {React.string("Parole")} </h1>
+          <h1>
+            {React.string("Alle ")}
+            <span className="cinque"> {React.string("Cinque")} </span>
+          </h1>
           <p className="tagline">
             {React.string(
               "Pick a letter and place it on its exact spot — drag it, or tap the letter then the tile",

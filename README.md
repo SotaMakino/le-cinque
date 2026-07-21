@@ -1,6 +1,6 @@
 # parole
 
-Bun monorepo: **Parole**, a letter-reveal trainer for beginner Italian
+Bun monorepo: **Alle Cinque** ("at five"), a letter-reveal trainer for beginner Italian
 vocabulary, built as a Go REST API plus a Vite + ReScript (React) client. Each
 round shows five Italian words on the left with their English translations
 hidden on the right — only the word lengths are visible. A 🔊 button next to
