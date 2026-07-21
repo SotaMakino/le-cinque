@@ -69,27 +69,10 @@ let keyboardRows = [
   ["Z", "X", "C", "V", "B", "N", "M"],
 ]
 
-// every revealed occurrence of a letter shares that letter's color
-let letterColors = [
-  "#aa3bff",
-  "#f59e0b",
-  "#ef4444",
-  "#22c55e",
-  "#06b6d4",
-  "#ec4899",
-  "#8b5cf6",
-  "#14b8a6",
-  "#f97316",
-  "#3b82f6",
-  "#84cc16",
-  "#e11d48",
-  "#0ea5e9",
-]
-
-let colorFor = letter => {
-  let code = letter->Js.String2.charCodeAt(0)->Belt.Float.toInt
-  letterColors->Belt.Array.getExn(mod(code - 65, Belt.Array.length(letterColors)))
-}
+// revealed letters: green when the character occurs once, red when it
+// appears multiple times across the round
+let uniqueColor = "#22c55e"
+let repeatedColor = "#ef4444"
 
 // HTML5 drag&drop: Firefox refuses to drag without setData, and the letter
 // itself travels in a ref so the drop handler can read it synchronously
@@ -320,11 +303,11 @@ let make = () => {
             )
             m
           }
-          // colors mark characters that repeat; a one-off letter stays gray
+          // repeated characters show red, one-off characters green
           let tileColor = letter =>
             letterCounts->Js.Dict.get(letter)->Belt.Option.getWithDefault(0) > 1
-              ? colorFor(letter)
-              : "#787c7e"
+              ? repeatedColor
+              : uniqueColor
           let missCount = g.wrong->Belt.Array.length
           <>
             <div className="tries">
