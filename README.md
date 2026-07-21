@@ -38,8 +38,6 @@ There are over 800 everyday words in the pool — nouns, verbs, adjectives,
 numbers, the months — and every round deals a fresh random five. Your account
 keeps a running count of the words you've learned.
 
-![Your account and learned-word count](docs/account.png)
-
 ## Play it
 
 Sign up with a username and password, and your progress is saved to your
