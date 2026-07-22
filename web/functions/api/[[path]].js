@@ -3,14 +3,13 @@
 // cookie the backend sets is first-party (SameSite=Lax), so it survives across
 // sessions instead of being dropped as a cross-site cookie.
 //
-// The backend URL comes from the Pages env var API_ORIGIN, falling back to the
-// existing VITE_API_URL (e.g. https://le-cinque.onrender.com). No path, and any
-// trailing slash is trimmed.
+// The backend URL comes from the Pages env var VITE_API_URL
+// (e.g. https://le-cinque.onrender.com). No path, and any trailing slash trimmed.
 export async function onRequest({ request, env }) {
-  const origin = (env.API_ORIGIN || env.VITE_API_URL || "").replace(/\/$/, "");
+  const origin = (env.VITE_API_URL || "").replace(/\/$/, "");
   if (!origin) {
     return new Response(
-      JSON.stringify({ error: "API_ORIGIN / VITE_API_URL is not configured" }),
+      JSON.stringify({ error: "VITE_API_URL is not configured" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
