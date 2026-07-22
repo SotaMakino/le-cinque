@@ -328,7 +328,9 @@ let make = () => {
           </div>
         </main>
       : <main className="app">
-          <p className="error" role="alert"> {React.string(tr.serverWeak)} </p>
+          <div className="loading-screen">
+            <p className="error" role="alert"> {React.string(tr.serverWeak)} </p>
+          </div>
         </main>
   | Some(g) =>
     <main className="app">

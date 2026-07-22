@@ -39,7 +39,7 @@ type t = {
 let it: t = {
   connecting: "Connessione al server…",
   retry: "Riprova",
-  serverWeak: "I nostri server fanno schifo. Riprova automatica tra 5 secondi.",
+  serverWeak: "I nostri server sono un po' sovraccarichi. Riprova automatica tra 5 secondi.",
   signIn: "Accedi",
   account: "Account",
   wordsLearned: "parole imparate",
@@ -75,7 +75,7 @@ let it: t = {
 let en: t = {
   connecting: "Connecting to server…",
   retry: "Retry",
-  serverWeak: "Our servers are shit-weak. It'll auto-retry in 5 seconds.",
+  serverWeak: "Our servers are a bit overloaded right now. Retrying automatically in 5 seconds.",
   signIn: "Sign in",
   account: "Account",
   wordsLearned: "words learned",
