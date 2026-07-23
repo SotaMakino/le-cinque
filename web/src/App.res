@@ -52,6 +52,7 @@ let make = () => {
   let (notice, setNotice) = React.useState(() => "") // rejected letter, transient
   let (busy, setBusy) = React.useState(() => false)
   let (bursts, setBursts) = React.useState(() => [])
+  let (shake, setShake) = React.useState(() => None) // tile flashed on a wrong drop
   let (account, setAccount) = React.useState(() => None) // fetched player: guest or account
   let (menuOpen, setMenuOpen) = React.useState(() => false)
   let (showAuth, setShowAuth) = React.useState(() => false) // sign-in overlay
@@ -216,6 +217,9 @@ let make = () => {
               let left = updated.maxMisses - updated.wrong->Belt.Array.length
               let shown = letter->Js.String2.toLowerCase
               setNotice(_ => I18n.notice(uiLang, shown, left))
+              // shake the missed slot, then clear it so it can fire again
+              setShake(_ => Some((wordIndex, position)))
+              let _ = Js.Global.setTimeout(() => setShake(_ => None), 450)
             }
             if updated.status == "won" {
               celebrate()
@@ -514,7 +518,8 @@ let make = () => {
                             <DndKit.Droppable
                               key={i->Belt.Int.toString}
                               dropId={`${wi->Belt.Int.toString}-${i->Belt.Int.toString}`}
-                              className={"tile open" ++ (armed ? " armed" : "")}
+                              className={"tile open" ++
+                              (armed ? " armed" : "") ++ (shake == Some((wi, i)) ? " shake" : "")}
                               armed
                               onClick={_ => placeLetter(selected, wi, i)->ignore}
                             />

@@ -310,6 +310,51 @@
 .tile.revealed {
   border-color: transparent;
   color: #fff;
+  animation: tile-pop 0.28s ease-out;
+}
+
+/* a correct letter drops in with a subtle bounce */
+@keyframes tile-pop {
+  0% {
+    transform: scale(0.85);
+  }
+  60% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* a wrong drop shakes the slot and flashes it red */
+.tile.open.shake {
+  animation: tile-shake 0.3s ease;
+  border-style: solid;
+  border-color: #cd212a;
+  background: rgba(205, 33, 42, 0.12);
+}
+
+@keyframes tile-shake {
+  20%,
+  80% {
+    transform: translateX(1.5px);
+  }
+  40%,
+  60% {
+    transform: translateX(-2.5px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(2.5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile.revealed,
+  .tile.open.shake {
+    animation: none;
+  }
 }
 
 /* an empty tile is a drop / tap target */
