@@ -409,28 +409,6 @@ func (h *Games) Reset(w http.ResponseWriter, r *http.Request) {
 	h.writeState(w, http.StatusOK, g)
 }
 
-// Retry restarts the just-finished round with the same five words.
-func (h *Games) Retry(w http.ResponseWriter, r *http.Request) {
-	user := middleware.Username(r)
-	g, err := h.latest(user)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "query failed")
-		return
-	}
-	if g == nil || g.status == "playing" {
-		writeError(w, http.StatusConflict, "no finished game to retry")
-		return
-	}
-	fresh := &game{words: g.words, status: "playing", direction: g.direction}
-	if err := h.DB.QueryRow(
-		"INSERT INTO games (username, word, status, direction) VALUES ($1, $2, 'playing', $3) RETURNING id",
-		user, strings.Join(g.words, ","), g.direction).Scan(&fresh.id); err != nil {
-		writeError(w, http.StatusInternalServerError, "could not start a game")
-		return
-	}
-	h.writeState(w, http.StatusCreated, fresh)
-}
-
 // SetDirection flips the current round between guessing the English word and
 // guessing the Italian one. It is allowed only before the player has placed any
 // letter — the UI disables the language flags once a round is underway. Changing

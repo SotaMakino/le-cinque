@@ -498,47 +498,6 @@ func TestReset_AfterGameOver(t *testing.T) {
 	}
 }
 
-func TestRetry_RepeatsTheSameWords(t *testing.T) {
-	h := setupGames(t)
-	old := startRound(t, h, "ann", testRound)
-	if _, err := h.DB.Exec("UPDATE games SET status = 'lost' WHERE id = $1", old); err != nil {
-		t.Fatal(err)
-	}
-
-	rec := httptest.NewRecorder()
-	h.Retry(rec, asUser("ann", "POST", "/game/retry", ""))
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d", rec.Code)
-	}
-	s := decodeState(t, rec)
-	if s.ID == old || s.Status != "playing" || len(s.Guessed) != 0 {
-		t.Errorf("expected a fresh retry round, got %+v", s)
-	}
-	for i, p := range s.Pairs {
-		if p.Prompt != testRound[i] {
-			t.Errorf("pair %d: expected %q, got %q", i, testRound[i], p.Prompt)
-		}
-		for _, l := range p.Tiles {
-			if l != "" {
-				t.Errorf("letter leaked in a retry round: %+v", p)
-			}
-		}
-	}
-}
-
-func TestRetry_WhilePlaying(t *testing.T) {
-	h := setupGames(t)
-	startRound(t, h, "ann", testRound)
-
-	rec := httptest.NewRecorder()
-	h.Retry(rec, asUser("ann", "POST", "/game/retry", ""))
-
-	if rec.Code != http.StatusConflict {
-		t.Errorf("expected 409, got %d", rec.Code)
-	}
-}
-
 func TestMe_CountsDistinctLearnedWords(t *testing.T) {
 	h := setupGames(t)
 	// two won rounds share "TRENO", plus a lost round that must not count

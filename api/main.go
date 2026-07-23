@@ -51,7 +51,6 @@ func main() {
 	game := http.NewServeMux()
 	game.HandleFunc("GET /game", h.Current)
 	game.HandleFunc("POST /game", h.New)
-	game.HandleFunc("POST /game/retry", h.Retry)
 	game.HandleFunc("POST /game/reset", h.Reset)
 	game.HandleFunc("POST /game/direction", h.SetDirection)
 	game.HandleFunc("POST /game/guess", h.Guess)
