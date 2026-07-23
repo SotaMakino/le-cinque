@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"math/rand/v2"
 	"net/http"
 	"sort"
 	"strconv"
@@ -123,7 +122,8 @@ func (h *Games) history(user string) (map[string]outcome, int, error) {
 // nextWords picks a round's words. Priority:
 //  1. spaced repetition — words lost at least ReviewGap finished rounds ago
 //     and not won since (oldest miss first)
-//  2. words the user has never played, drawn at random
+//  2. words the user has never played, in curriculum order — words.tsv is
+//     ordered most-essential first, so beginners meet the core words soonest
 //  3. not-yet-won words played longest ago (losses not due yet)
 //  4. everything is won: recycle the words won longest ago
 func (h *Games) nextWords(user string) ([]string, error) {
@@ -158,15 +158,11 @@ func (h *Games) nextWords(user string) ([]string, error) {
 	}
 
 	takeOldest(func(o outcome) bool { return !o.won && round-o.round >= ReviewGap })
-	unseen := []string{}
+	// unseen words, most-essential first (words.tsv order)
 	for _, v := range words {
 		if _, seen := last[v.Italian]; !seen {
-			unseen = append(unseen, v.Italian)
+			take(v.Italian)
 		}
-	}
-	rand.Shuffle(len(unseen), func(i, j int) { unseen[i], unseen[j] = unseen[j], unseen[i] })
-	for _, w := range unseen {
-		take(w)
 	}
 	takeOldest(func(o outcome) bool { return !o.won })
 	takeOldest(func(o outcome) bool { return true })

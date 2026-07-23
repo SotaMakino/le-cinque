@@ -20,8 +20,9 @@ type vocab struct {
 //go:embed words.tsv
 var wordsTSV string
 
-// words is the parsed curriculum. Rounds draw five at random (review words
-// first — see nextWords).
+// words is the parsed curriculum, in words.tsv order — most-essential first.
+// Rounds draw five, review words first, then unseen words in this order
+// (see nextWords).
 var words = parseVocab(wordsTSV)
 
 // parseVocab reads the embedded TSV, skipping blank lines and "#" comments.
