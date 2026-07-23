@@ -1,0 +1,23 @@
+			Le Cinque
+			=========
+
+A game for learning beginner Italian vocabulary, five words at a
+time.  Play it at https://le-cinque.pages.dev -- buono studio!
+
+CURRICULUM
+
+  Five Italian words are laid out with their English translations
+  hidden.  Fill in the letters to reveal all five before you run out
+  of mistakes.  Over 1,500 everyday words, with spaced repetition so
+  the ones you miss come back later.
+
+BUILDING
+
+  The API is a Go service in api/; the web client lives in web/ and
+  is built with Bun.
+
+    bun run dev:api      start the API
+    bun run dev:web      start the web client
+    bun run test:api     run the API tests
+    bun run test:web     run the web tests
+    bun run build:web    build the web client
