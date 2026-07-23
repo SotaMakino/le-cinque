@@ -11,13 +11,28 @@ CURRICULUM
   of mistakes.  Over 1,500 everyday words, with spaced repetition so
   the ones you miss come back later.
 
-BUILDING
+WORD PRIORITIZATION
 
-  The API is a Go service in api/; the web client lives in web/ and
-  is built with Bun.
+  Each round deals five words.  nextWords (api/handlers/game.go) fills
+  those five slots by trying four tiers in order, taking words from a
+  tier until the round is full or the tier runs dry:
 
-    bun run dev:api      start the API
-    bun run dev:web      start the web client
-    bun run test:api     run the API tests
-    bun run test:web     run the web tests
-    bun run build:web    build the web client
+    1. Review (spaced repetition).  Words you lost at least ReviewGap
+       (3) finished rounds ago and have not won since; oldest miss
+       first, so overdue words return before newer ones.
+
+    2. New words.  Words you have never played, taken in words.tsv
+       order.  The curriculum is ordered most-essential first, so
+       beginners meet the core vocabulary soonest instead of a random
+       scatter across all 1,500+ words.
+
+    3. Not-yet-won, oldest first.  Words you have played but not won
+       whose losses are not yet due for review; the ones you saw
+       longest ago come first.
+
+    4. Recycle.  Once you have won everything, replay the words you
+       won longest ago.
+
+  A typical round mixes a couple of due review words with fresh core
+  vocabulary, and only falls back to tiers 3-4 once you have seen most
+  of the curriculum.
