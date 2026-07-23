@@ -584,6 +584,14 @@
   color: #fff;
 }
 
+/* the open tile the arrow keys point at: a ring so keyboard players can see
+   where the next letter will land */
+.tile.open.tile-cursor {
+  box-shadow: 0 0 0 3px var(--accent);
+  position: relative;
+  z-index: 1;
+}
+
 /* tiny phones (e.g. Unihertz Jelly 2, ~240px CSS-wide 3" screen): let the
    10-key top row shrink to fit instead of overflowing the viewport */
 @media (max-width: 380px) {

@@ -33,6 +33,17 @@ type keyboardEvent
 external addKeyListener: (string, keyboardEvent => unit) => unit = "addEventListener"
 @val @scope("document")
 external removeKeyListener: (string, keyboardEvent => unit) => unit = "removeEventListener"
+@send external preventDefault: keyboardEvent => unit = "preventDefault"
+type domTarget
+@get external eventTarget: keyboardEvent => domTarget = "target"
+@get external targetTag: domTarget => string = "tagName"
+@get external targetEditable: domTarget => bool = "isContentEditable"
+
+type pointerEvent
+@val @scope("document")
+external addPointerListener: (string, pointerEvent => unit) => unit = "addEventListener"
+@val @scope("document")
+external removePointerListener: (string, pointerEvent => unit) => unit = "removeEventListener"
 
 let keyboardRows = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
@@ -196,6 +207,8 @@ let make = () => {
   }, [celebrating])
 
   let (selected, setSelected) = React.useState(() => "") // letter picked from the keyboard
+  let (tileCursor, setTileCursor) = React.useState(() => (None: option<(int, int)>)) // arrow-key cursor
+  let (navMode, setNavMode) = React.useState(() => false) // true while navigating tiles by arrow keys
 
   // place one letter on one exact tile
   let placeLetter = async (letter, wordIndex, position) => {
@@ -275,6 +288,129 @@ let make = () => {
     }
   }
 
+  // --- keyboard-only placement: the arrow keys move a cursor across the open
+  // tiles of the pairs, and Enter/Space drops the selected letter there. Only
+  // the empty ("hidden input") slots take part; a pointer press hands control
+  // back to the mouse (see the pointerdown effect below). ---
+
+  // open positions (empty tiles) in a given pair row, as tile indices
+  let openInRow = wi =>
+    switch game {
+    | Some(g) =>
+      switch g.pairs->Belt.Array.get(wi) {
+      | Some(p) =>
+        p.tiles
+        ->Belt.Array.mapWithIndex((pos, l) => (pos, l))
+        ->Belt.Array.keep(((_, l)) => l == "")
+        ->Belt.Array.map(((pos, _)) => pos)
+      | None => []
+      }
+    | None => []
+    }
+  let rowCount = switch game {
+  | Some(g) => g.pairs->Belt.Array.length
+  | None => 0
+  }
+  let firstOpenTile = () => {
+    let rec go = wi =>
+      if wi >= rowCount {
+        None
+      } else {
+        switch openInRow(wi)->Belt.Array.get(0) {
+        | Some(pos) => Some((wi, pos))
+        | None => go(wi + 1)
+        }
+      }
+    go(0)
+  }
+  // the open tile the arrows point at, snapped to a valid slot as the board fills
+  let activeTile = switch tileCursor {
+  | Some((wi, pos)) if openInRow(wi)->Belt.Array.some(p => p == pos) => Some((wi, pos))
+  | _ => firstOpenTile()
+  }
+  // nearest open tile in a row to a reference column, for vertical moves
+  let nearestOpenInRow = (wi, refPos) =>
+    switch openInRow(wi)->Belt.Array.get(0) {
+    | None => None
+    | Some(first) =>
+      let best =
+        openInRow(wi)->Belt.Array.reduce(first, (acc, p) =>
+          Js.Math.abs_int(p - refPos) < Js.Math.abs_int(acc - refPos) ? p : acc
+        )
+      Some((wi, best))
+    }
+  let rec adjacentOpenRow = (wi, refPos, step) =>
+    if wi < 0 || wi >= rowCount {
+      None
+    } else {
+      switch nearestOpenInRow(wi, refPos) {
+      | Some(t) => Some(t)
+      | None => adjacentOpenRow(wi + step, refPos, step)
+      }
+    }
+  // the closest open tile to one side (left/right) within the same row
+  let closerOnSide = (opens, cpos, keepLeft) =>
+    opens->Belt.Array.reduce(None, (acc, p) => {
+      let onSide = keepLeft ? p < cpos : p > cpos
+      if !onSide {
+        acc
+      } else {
+        switch acc {
+        | Some(a) => (keepLeft ? p > a : p < a) ? Some(p) : acc
+        | None => Some(p)
+        }
+      }
+    })
+  let moveTile = dir =>
+    switch activeTile {
+    | None => ()
+    | Some((cwi, cpos)) =>
+      let target = switch dir {
+      | #left => closerOnSide(openInRow(cwi), cpos, true)->Belt.Option.map(p => (cwi, p))
+      | #right => closerOnSide(openInRow(cwi), cpos, false)->Belt.Option.map(p => (cwi, p))
+      | #up => adjacentOpenRow(cwi - 1, cpos, -1)
+      | #down => adjacentOpenRow(cwi + 1, cpos, 1)
+      }
+      switch target {
+      | Some(t) => setTileCursor(_ => Some(t))
+      | None => ()
+      }
+    }
+  let placeAtCursor = () =>
+    switch activeTile {
+    | Some((wi, pos)) => placeLetter(selected, wi, pos)->ignore
+    | None => ()
+    }
+  let handleKeyEvent = e => {
+    let target = e->eventTarget
+    // never hijack the arrows while typing in a form field
+    let editable =
+      target->targetTag == "INPUT" || target->targetTag == "TEXTAREA" || target->targetEditable
+    if editable {
+      ()
+    } else {
+      switch e->eventKey {
+      | "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" =>
+        e->preventDefault
+        setNavMode(_ => true)
+        let dir = switch e->eventKey {
+        | "ArrowLeft" => #left
+        | "ArrowRight" => #right
+        | "ArrowUp" => #up
+        | _ => #down
+        }
+        moveTile(dir)
+      | "Enter" | " " =>
+        if navMode {
+          e->preventDefault
+          placeAtCursor()
+        }
+      | "Escape" => setSelected(_ => "")
+      | k => handleKey(k)
+      }
+    }
+  }
+
   // a letter is "in hand" while dragging or while one is selected from the
   // keyboard; open slots light up so the player can see where it can go
   let (dragging, setDragging) = React.useState(() => false)
@@ -300,16 +436,24 @@ let make = () => {
 
   // the physical keyboard listener mounts once, so route events through a ref
   // that always points at the latest render's handler
-  let handleKeyRef = React.useRef(handleKey)
-  handleKeyRef.current = handleKey
+  let handleKeyRef = React.useRef(handleKeyEvent)
+  handleKeyRef.current = handleKeyEvent
 
   React.useEffect0(() => {
     let listener = e =>
       if !(e->ctrlKey) && !(e->metaKey) && !(e->altKey) {
-        handleKeyRef.current(e->eventKey)
+        handleKeyRef.current(e)
       }
     addKeyListener("keydown", listener)
     Some(() => removeKeyListener("keydown", listener))
+  })
+
+  // a pointer press (click or tap, anywhere) drops the arrow-key cursor so it
+  // never lingers once the mouse takes over
+  React.useEffect0(() => {
+    let listener = _ => setNavMode(_ => false)
+    addPointerListener("pointerdown", listener)
+    Some(() => removePointerListener("pointerdown", listener))
   })
 
   // signing in or out swaps the player identity, so reload the round (now keyed
@@ -519,7 +663,9 @@ let make = () => {
                               key={i->Belt.Int.toString}
                               dropId={`${wi->Belt.Int.toString}-${i->Belt.Int.toString}`}
                               className={"tile open" ++
-                              (armed ? " armed" : "") ++ (shake == Some((wi, i)) ? " shake" : "")}
+                              (armed ? " armed" : "") ++
+                              (shake == Some((wi, i)) ? " shake" : "") ++
+                              (navMode && activeTile == Some((wi, i)) ? " tile-cursor" : "")}
                               armed
                               onClick={_ => placeLetter(selected, wi, i)->ignore}
                             />
