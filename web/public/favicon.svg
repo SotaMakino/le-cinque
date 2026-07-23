@@ -1,28 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
-  <!-- Italian frog: a green rana with a tricolore scarf -->
-  <defs>
-    <clipPath id="scarf"><rect x="15" y="37" width="18" height="6" rx="3"/></clipPath>
-  </defs>
-  <!-- head -->
-  <ellipse cx="24" cy="29" rx="20" ry="15" fill="#2f9e4f"/>
-  <!-- eye bumps -->
-  <circle cx="14" cy="13" r="8" fill="#2f9e4f"/>
-  <circle cx="34" cy="13" r="8" fill="#2f9e4f"/>
-  <!-- eye whites -->
-  <circle cx="14" cy="12" r="5.2" fill="#ffffff"/>
-  <circle cx="34" cy="12" r="5.2" fill="#ffffff"/>
-  <!-- pupils -->
-  <circle cx="15" cy="13" r="2.6" fill="#132110"/>
-  <circle cx="35" cy="13" r="2.6" fill="#132110"/>
-  <!-- nostrils -->
-  <circle cx="21" cy="23" r="1.1" fill="#1c6e37"/>
-  <circle cx="27" cy="23" r="1.1" fill="#1c6e37"/>
-  <!-- smile -->
-  <path d="M14 27 Q24 35 34 27" fill="none" stroke="#132110" stroke-width="2.4" stroke-linecap="round"/>
-  <!-- tricolore scarf -->
-  <g clip-path="url(#scarf)">
-    <rect x="15" y="37" width="6" height="6" fill="#008C45"/>
-    <rect x="21" y="37" width="6" height="6" fill="#F4F5F0"/>
-    <rect x="27" y="37" width="6" height="6" fill="#CD212A"/>
+  <!-- clock face showing five o'clock — Le Cinque -->
+  <circle cx="24" cy="24" r="21" fill="#F4F5F0" stroke="#2f9e4f" stroke-width="3"/>
+  <!-- hour ticks at 12, 3, 6, 9 -->
+  <g fill="#132110">
+    <rect x="23" y="5" width="2" height="4" rx="1"/>
+    <rect x="39" y="23" width="4" height="2" rx="1"/>
+    <rect x="23" y="39" width="2" height="4" rx="1"/>
+    <rect x="5" y="23" width="4" height="2" rx="1"/>
   </g>
+  <!-- minute hand → 12 -->
+  <line x1="24" y1="24" x2="24" y2="9" stroke="#132110" stroke-width="2.4" stroke-linecap="round"/>
+  <!-- hour hand → 5 -->
+  <line x1="24" y1="24" x2="30" y2="34" stroke="#CD212A" stroke-width="2.8" stroke-linecap="round"/>
+  <!-- center pin -->
+  <circle cx="24" cy="24" r="2.2" fill="#132110"/>
 </svg>

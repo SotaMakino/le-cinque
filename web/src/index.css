@@ -1,8 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Ultra&display=swap');
 
 :root {
   /* La Gazzetta print edition: the signature pink newsprint, black ink */
-  --logo: 'Fredoka', system-ui, sans-serif; /* rounded, all-black masthead wordmark */
+  --logo: 'Ultra', Georgia, serif; /* heavy slab-serif masthead wordmark */
   --text: #3a2b28;
   --text-h: #1a1210;
   --bg: #f7d9cf; /* carta rosa */
