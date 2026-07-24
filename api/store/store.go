@@ -46,5 +46,16 @@ func Open(url string) (*sql.DB, error) {
 		streak INT NOT NULL DEFAULT 0,
 		PRIMARY KEY (username, word)
 	)`)
+	// Rounds played before word_reviews existed only recorded a win or a loss
+	// per round. Seed those wins so returning players keep their vocabulary
+	// count and their words re-enter the review rotation instead of being dealt
+	// as if never met. ON CONFLICT keeps this idempotent: a word that already
+	// has a record is left on whatever rung it has reached.
+	_, err = db.Exec(`INSERT INTO word_reviews (username, word, due_at, last_seen, streak)
+		SELECT username, w, now(), now(), 1 FROM (
+			SELECT username, unnest(string_to_array(word, ',')) AS w
+			FROM games WHERE status = 'won'
+		) t
+		ON CONFLICT (username, word) DO NOTHING`)
 	return db, err
 }
