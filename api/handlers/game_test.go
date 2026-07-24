@@ -26,7 +26,7 @@ func setupDB(t *testing.T) *sql.DB {
 		t.Skipf("postgres unavailable: %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
-	if _, err := db.Exec("TRUNCATE games, guesses, accounts, sessions, word_reviews"); err != nil {
+	if _, err := db.Exec("TRUNCATE games, guesses, accounts, sessions, word_reviews, study_days"); err != nil {
 		t.Fatal(err)
 	}
 	return db
@@ -568,6 +568,50 @@ func TestMe_CountsRetrievedWordsOnly(t *testing.T) {
 	}
 }
 
+func TestMe_ActivityCalendarCountsRetrievalsPerDay(t *testing.T) {
+	h := setupGames(t)
+	at := time.Date(2026, 7, 22, 10, 0, 0, 0, time.UTC)
+	freezeClock(t, at)
+
+	// three retrievals today, two five days ago; everything else untouched
+	if _, err := h.DB.Exec(
+		`INSERT INTO study_days (username, day, count) VALUES ('ann', $1::date, 3), ('ann', $2::date, 2)`,
+		at, at.AddDate(0, 0, -5)); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	h.Me(rec, asUser("ann", "GET", "/me", ""))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	var body struct {
+		Activity []int `json:"activity"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+
+	// the dense window runs from a Sunday through today, so its length is fixed
+	// by today's weekday plus twelve whole weeks
+	today := time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, at.Location())
+	wantLen := int(today.Weekday()) + 7*12 + 1
+	if len(body.Activity) != wantLen {
+		t.Fatalf("expected %d days, got %d", wantLen, len(body.Activity))
+	}
+	// counting from the end: today is last, five days back is five cells earlier,
+	// and any untouched day reads zero
+	if last := body.Activity[len(body.Activity)-1]; last != 3 {
+		t.Errorf("expected today's count 3, got %d", last)
+	}
+	if five := body.Activity[len(body.Activity)-6]; five != 2 {
+		t.Errorf("expected count 2 five days ago, got %d", five)
+	}
+	if idle := body.Activity[len(body.Activity)-3]; idle != 0 {
+		t.Errorf("expected 0 for an unstudied day, got %d", idle)
+	}
+}
+
 func TestRecordReviews_LeakedWordEarnsNothing(t *testing.T) {
 	h := setupGames(t)
 	at := time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC)
@@ -636,6 +680,57 @@ func TestRecordReviews_LadderExpandsAndResets(t *testing.T) {
 	r, _ = readReview(t, h, "ann", "TRENO")
 	if r.streak != 0 {
 		t.Errorf("expected the streak reset after a lost round, got %d", r.streak)
+	}
+}
+
+func TestRecordReviews_TalliesTheStudyDay(t *testing.T) {
+	h := setupGames(t)
+	at := time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC)
+	freezeClock(t, at)
+
+	// solving a round retrieves every word; the day's tally should equal how
+	// many distinct words were genuinely produced
+	startRound(t, h, "ann", testRound)
+	solveRound(h, "ann", testRound)
+
+	var count int
+	if err := h.DB.QueryRow(
+		"SELECT count FROM study_days WHERE username = 'ann' AND day = $1::date", at).Scan(&count); err != nil {
+		t.Fatalf("no study_days row for today: %v", err)
+	}
+	if count != len(testRound) {
+		t.Errorf("expected %d retrievals tallied, got %d", len(testRound), count)
+	}
+
+	// and it surfaces on the activity calendar's final (today) cell
+	cal, err := h.activityCalendar("ann")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last := cal[len(cal)-1]; last != len(testRound) {
+		t.Errorf("expected today's cell to read %d, got %d", len(testRound), last)
+	}
+}
+
+func TestRecordReviews_LostRoundWithNoRetrievalLeavesNoMark(t *testing.T) {
+	h := setupGames(t)
+	at := time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC)
+	freezeClock(t, at)
+
+	// five misses without ever placing a correct letter: nothing retrieved, so
+	// the day earns no entry on the calendar
+	startRound(t, h, "ann", testRound)
+	for i := 0; i < MaxMisses; i++ {
+		place(h, "ann", "Z", 0, i)
+	}
+
+	var n int
+	if err := h.DB.QueryRow(
+		"SELECT COUNT(*) FROM study_days WHERE username = 'ann'").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("expected no study_days rows after a blank round, got %d", n)
 	}
 }
 

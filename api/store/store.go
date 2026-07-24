@@ -46,6 +46,14 @@ func Open(url string) (*sql.DB, error) {
 		streak INT NOT NULL DEFAULT 0,
 		PRIMARY KEY (username, word)
 	)`)
+	// one row per day the player studied, holding how many words they genuinely
+	// retrieved that day — the source for the GitHub-style activity calendar
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS study_days (
+		username TEXT NOT NULL,
+		day DATE NOT NULL,
+		count INT NOT NULL DEFAULT 0,
+		PRIMARY KEY (username, day)
+	)`)
 	// Rounds played before word_reviews existed only recorded a win or a loss
 	// per round. Seed those wins so returning players keep their vocabulary
 	// count and their words re-enter the review rotation instead of being dealt

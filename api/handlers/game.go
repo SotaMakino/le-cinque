@@ -175,7 +175,50 @@ func (h *Games) recordReviews(user string, g *game, attempts []attempt) error {
 			return err
 		}
 	}
+	// tally the day's genuine retrievals for the activity calendar; a round in
+	// which the player recalled nothing leaves no mark on the grid
+	if len(retrieved) > 0 {
+		if _, err := h.DB.Exec(
+			`INSERT INTO study_days (username, day, count) VALUES ($1, $2::date, $3)
+			 ON CONFLICT (username, day) DO UPDATE SET count = study_days.count + EXCLUDED.count`,
+			user, at, len(retrieved)); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// activityCalendar returns daily retrieval counts for a GitHub-style heatmap.
+// The window begins on the Sunday on or before 12 weeks ago and runs through
+// today (13 columns once chunked into 7-day weeks), so the dense slice the
+// client receives aligns cleanly into weekday rows. Days with no study are 0.
+func (h *Games) activityCalendar(user string) ([]int, error) {
+	at := now()
+	today := time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, at.Location())
+	start := today.AddDate(0, 0, -int(today.Weekday())-7*12)
+	rows, err := h.DB.Query(
+		"SELECT day, count FROM study_days WHERE username = $1 AND day >= $2::date", user, start)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	counts := map[string]int{}
+	for rows.Next() {
+		var day time.Time
+		var c int
+		if err := rows.Scan(&day, &c); err != nil {
+			return nil, err
+		}
+		counts[day.Format("2006-01-02")] = c
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	out := []int{}
+	for d := start; !d.After(today); d = d.AddDate(0, 0, 1) {
+		out = append(out, counts[d.Format("2006-01-02")])
+	}
+	return out, nil
 }
 
 // nextWords picks a round's words. Priority:
@@ -426,6 +469,15 @@ func (h *Games) Me(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
 	}
+	// a GitHub-style activity calendar: how many words the player genuinely
+	// retrieved on each of the recent days. The window starts on a Sunday so the
+	// client can chunk the dense array into weekday-aligned columns; days with no
+	// study come back as 0. daysBack covers 13 weeks plus the current partial week.
+	activity, err := h.activityCalendar(user)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "query failed")
+		return
+	}
 	// guest players play anonymously; only signed-in accounts show a name and
 	// a persisted vocabulary count in the UI
 	w.Header().Set("Content-Type", "application/json")
@@ -434,6 +486,7 @@ func (h *Games) Me(w http.ResponseWriter, r *http.Request) {
 		"learned":  learned,
 		"guest":    !authed,
 		"plays":    plays,
+		"activity": activity,
 	})
 }
 

@@ -6,7 +6,7 @@ type pair = {prompt: string, tiles: array<string>}
 
 // guest = true means anonymous play; a signed-in account shows its name + count.
 // plays is the global tally of rounds dealt (all players), shown as the issue N.
-type me = {username: string, learned: int, guest: bool, plays: int}
+type me = {username: string, learned: int, guest: bool, plays: int, activity: array<int>}
 
 type game = {
   id: int,
@@ -562,6 +562,53 @@ let make = () => {
                             {React.string(acc.learned->Belt.Int.toString)}
                           </span>
                           <span className="menu-label"> {React.string(tr.wordsLearned)} </span>
+                        </div>
+                        {
+                          // progress toward the 1,500-word course, capped at 100%
+                          let pct = acc.learned * 100 / 1500
+                          let pct = pct > 100 ? 100 : pct
+                          <div className="menu-progress-wrap">
+                            <div className="menu-progress">
+                              <span style={{width: pct->Belt.Int.toString ++ "%"}} />
+                            </div>
+                            <p className="menu-progress-label">
+                              {React.string(
+                                acc.learned->Belt.Int.toString ++
+                                " / " ++
+                                tr.wordGoal ++
+                                " · " ++
+                                pct->Belt.Int.toString ++ "%",
+                              )}
+                            </p>
+                          </div>
+                        }
+                        <div className="menu-cal-wrap">
+                          <span className="menu-label"> {React.string(tr.recentActivity)} </span>
+                          <div className="menu-cal">
+                            {
+                              // dense daily counts starting on a Sunday: chunk into
+                              // week columns, one cell per weekday (Sun→Sat)
+                              let cols = (Belt.Array.length(acc.activity) + 6) / 7
+                              Belt.Array.makeBy(cols, col =>
+                                <div className="cal-week" key={col->Belt.Int.toString}>
+                                  {Belt.Array.makeBy(7, row => {
+                                    let i = col * 7 + row
+                                    switch Belt.Array.get(acc.activity, i) {
+                                    | Some(c) =>
+                                      let lvl =
+                                        c <= 0 ? "0" : c <= 2 ? "1" : c <= 5 ? "2" : c <= 9 ? "3" : "4"
+                                      <div
+                                        key={row->Belt.Int.toString}
+                                        className={"cal-day l" ++ lvl}
+                                      />
+                                    | None =>
+                                      <div key={row->Belt.Int.toString} className="cal-day cal-empty" />
+                                    }
+                                  })->React.array}
+                                </div>
+                              )->React.array
+                            }
+                          </div>
                         </div>
                         <div className="menu-actions">
                           <button
