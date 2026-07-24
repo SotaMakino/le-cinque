@@ -158,6 +158,18 @@ func decodeState(t *testing.T, rec *httptest.ResponseRecorder) gameState {
 	return s
 }
 
+// entry looks a curriculum entry up by its Italian word.
+func entry(t *testing.T, italian string) vocab {
+	t.Helper()
+	for _, v := range words {
+		if v.Italian == italian {
+			return v
+		}
+	}
+	t.Fatalf("%q is not in the curriculum", italian)
+	return vocab{}
+}
+
 func TestWords_UppercaseAndUnique(t *testing.T) {
 	if len(words) < 500 {
 		t.Errorf("expected at least 500 words, got %d", len(words))
@@ -665,6 +677,50 @@ func TestCurrentGame_ScopedToUser(t *testing.T) {
 	}
 }
 
+func TestNextWords_NewPlayerGetsOneWordPerTheme(t *testing.T) {
+	h := setupGames(t)
+
+	ws, err := h.nextWords("ann", "it")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ws) != WordsPerRound {
+		t.Fatalf("expected %d words, got %v", WordsPerRound, ws)
+	}
+	// five colors or five numbers in one round would have the words interfere
+	// with each other, so the curriculum is dealt across its themes
+	themes := map[string]bool{}
+	for _, w := range ws {
+		v := entry(t, w)
+		if themes[v.Theme] {
+			t.Errorf("two words from theme %q in one round: %v", v.Theme, ws)
+		}
+		themes[v.Theme] = true
+	}
+}
+
+func TestNextWords_EnDirectionSkipsAmbiguousPrompts(t *testing.T) {
+	h := setupGames(t)
+
+	// in this direction the English word is the clue, so a translation shared by
+	// two Italian words (PUSH is both SPINGERE and SPINTA) is unanswerable
+	for i := 0; i < 40; i++ {
+		ws, err := h.nextWords("ann", "en")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, w := range ws {
+			if ambiguousEnglish[english[w]] {
+				t.Fatalf("%q has the ambiguous prompt %q", w, english[w])
+			}
+		}
+		finishRound(t, h, "ann", ws, "won")
+		for _, w := range ws {
+			setReview(t, h, "ann", w, now().AddDate(0, 0, 30), now(), 1)
+		}
+	}
+}
+
 func TestNextWords_DueWordsLeadTheRound(t *testing.T) {
 	h := setupGames(t)
 	at := time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC)
@@ -676,7 +732,7 @@ func TestNextWords_DueWordsLeadTheRound(t *testing.T) {
 	// and one whose next review is still a fortnight out
 	setReview(t, h, "ann", "CANE", at.AddDate(0, 0, 14), at.AddDate(0, 0, -7), 3)
 
-	ws, err := h.nextWords("ann")
+	ws, err := h.nextWords("ann", "it")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -699,7 +755,7 @@ func TestNextWords_HeldBackWithinTheSession(t *testing.T) {
 	// review minutes behind its first encounter
 	setReview(t, h, "ann", "GATTO", at.Add(-time.Minute), at.Add(-time.Minute), 0)
 
-	ws, err := h.nextWords("ann")
+	ws, err := h.nextWords("ann", "it")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -711,7 +767,7 @@ func TestNextWords_HeldBackWithinTheSession(t *testing.T) {
 
 	// the next session picks it up
 	freezeClock(t, at.Add(SessionGap+time.Minute))
-	ws, err = h.nextWords("ann")
+	ws, err = h.nextWords("ann", "it")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -731,7 +787,7 @@ func TestNextWords_FillsTheRoundWhenGuardsCollide(t *testing.T) {
 		setReview(t, h, "ann", v.Italian, at, at, 1)
 	}
 
-	ws, err := h.nextWords("ann")
+	ws, err := h.nextWords("ann", "it")
 	if err != nil {
 		t.Fatal(err)
 	}

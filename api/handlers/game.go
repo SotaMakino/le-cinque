@@ -187,10 +187,12 @@ func (h *Games) recordReviews(user string, g *game, attempts []attempt) error {
 //     ordered most-essential first, so beginners meet the core words soonest
 //  3. filler, once the curriculum runs out: whatever was seen longest ago
 //
-// A word seen within SessionGap is held back from every tier, so a long sitting
-// cannot stack a review right behind its first encounter. That guard relaxes on
-// a second pass rather than deal a short round.
-func (h *Games) nextWords(user string) ([]string, error) {
+// Two guards apply to every tier. No two words in a round share a theme, because
+// meeting a whole semantic set at once — five colors, five numbers — makes the
+// words interfere with one another. And a word seen within SessionGap is held
+// back, so a long sitting cannot stack a review right behind its first
+// encounter. Both relax on a second pass rather than deal a short round.
+func (h *Games) nextWords(user, direction string) ([]string, error) {
 	revs, err := h.reviews(user)
 	if err != nil {
 		return nil, err
@@ -199,17 +201,27 @@ func (h *Games) nextWords(user string) ([]string, error) {
 
 	picked := []string{}
 	taken := map[string]bool{}
+	usedTheme := map[string]bool{}
 	relaxed := false
 	take := func(v vocab) {
 		if len(picked) >= WordsPerRound || taken[v.Italian] {
 			return
 		}
+		// here the English word is the prompt, so it has to name exactly one
+		// Italian word for the tiles to be answerable
+		if direction == "en" && ambiguousEnglish[v.English] {
+			return
+		}
 		if !relaxed {
+			if usedTheme[v.Theme] {
+				return
+			}
 			if r, ok := revs[v.Italian]; ok && at.Sub(r.lastSeen) < SessionGap {
 				return
 			}
 		}
 		taken[v.Italian] = true
+		usedTheme[v.Theme] = true
 		picked = append(picked, v.Italian)
 	}
 
@@ -252,7 +264,7 @@ func (h *Games) nextWords(user string) ([]string, error) {
 }
 
 func (h *Games) create(user, direction string) (*game, error) {
-	picked, err := h.nextWords(user)
+	picked, err := h.nextWords(user, direction)
 	if err != nil {
 		return nil, err
 	}
@@ -526,7 +538,7 @@ func (h *Games) SetDirection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if g.direction != dir {
-		picked, err := h.nextWords(user)
+		picked, err := h.nextWords(user, dir)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "query failed")
 			return

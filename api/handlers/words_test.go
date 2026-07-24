@@ -16,11 +16,12 @@ func TestParseVocab_ParsesPairs(t *testing.T) {
 		"NOTABHERE\n" // no tab → skipped
 
 	got := parseVocab(in)
+	// a "#" line is not discarded: it names the theme of everything below it
 	want := []vocab{
-		{"TRENO", "TRAIN"},
-		{"BANCA", "BANK"},
-		{"MELA", "APPLE"},
-		{"MUSICA", "MUSIC"},
+		{"TRENO", "TRAIN", "a theme comment"},
+		{"BANCA", "BANK", "a theme comment"},
+		{"MELA", "APPLE", "another comment"},
+		{"MUSICA", "MUSIC", "another comment"},
 	}
 	if len(got) != len(want) {
 		t.Fatalf("expected %d entries, got %d: %+v", len(want), len(got), got)
