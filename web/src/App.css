@@ -642,7 +642,7 @@
   text-align: center;
   font-size: 14px;
   color: var(--text-h);
-  margin: 0.75rem 0;
+  margin: 1.25rem 0 0.75rem;
   /* reserve exactly one line so guess feedback never shifts the layout; the
      unitless line-height makes the empty and filled heights match */
   line-height: 1.4;
