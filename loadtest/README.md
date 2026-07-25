@@ -102,6 +102,49 @@ psql "postgres://localhost:5432/hellodb?sslmode=disable" -f loadtest/cleanup.sql
 
 ---
 
+## Cold-start measurement (Render vs Cloud Run)
+
+The k6 kit above measures the **warm** DB hot path. Cold start is a different,
+deploy-level metric: how long the first request takes after the service has been
+idle long enough to spin down (Render free: ~15 min; Cloud Run without
+`min-instances`: ~15 min). A load test can't see it — request #1 warms the
+server and every request after is warm. So this uses a single `curl`.
+
+`coldstart.sh` hits an **unregistered** path (`/_coldping`) on purpose: it
+returns 404 from the booted server, so the timing is pure boot + network — no
+DB, no auth. The number that matters is **`TTFB`** (time-to-first-byte); on a
+cold start the whole container boot happens before the first byte.
+
+```sh
+# COLD — the headline metric. Leave the service idle >15 min first, then:
+./loadtest/coldstart.sh https://your-app.onrender.com
+# repeat 3–5 times (15+ min apart) for a range, not one lucky sample
+
+# WARM — baseline, proves the network path itself is fine:
+./loadtest/coldstart.sh https://your-app.onrender.com warm
+```
+
+Every run is appended to `coldstart-results.csv` (one row per request, tagged
+with timestamp, host, and mode), so before (Render) and after (Cloud Run)
+numbers pile up in one file. Compare with e.g.:
+
+```sh
+column -s, -t loadtest/coldstart-results.csv   # quick read
+```
+
+Run the exact same two commands against the Cloud Run URL after migrating, from
+the **same machine and network** (so network latency is a constant), and compare
+cold TTFB to cold TTFB.
+
+| | Render free (cold) | Cloud Run, scale-to-zero (cold) | Cloud Run, `min-instances=1` |
+|---|---|---|---|
+| TTFB | tens of seconds → minutes | ~1–3 s | warm always (~50–200 ms) |
+
+Warm latency barely changes between platforms — the migration's whole value is
+in the **cold** column. That's the before/after story worth capturing.
+
+---
+
 ## Optional: `pg_stat_statements` (aggregate view of every query)
 
 `EXPLAIN` inspects one query you name. `pg_stat_statements` records *all* of
@@ -128,3 +171,5 @@ above uses `EXPLAIN` instead. If you want it:
 - `seed.sql` — fill the local DB with load-test rows (edit the counts to taste).
 - `play.ts` — k6 scenario: 20 concurrent guests hitting the game hot path.
 - `cleanup.sql` — delete every `loadtest_%` row and re-analyze.
+- `coldstart.sh` — measure cold-start vs warm TTFB of a deployed server (Render vs Cloud Run).
+- `coldstart-results.csv` — created on first run; accumulates every measurement.

@@ -4,3 +4,4 @@ dist/
 cookies.txt
 hello-api
 prod-cookies.txt
+loadtest/coldstart-results.csv
