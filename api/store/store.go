@@ -36,6 +36,11 @@ func Open(url string) (*sql.DB, error) {
 		game_id BIGINT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
 		guess TEXT NOT NULL
 	)`)
+	// every board read filters guesses by game_id, but Postgres does not index a
+	// foreign key automatically, so without this the query sequentially scans the
+	// whole guesses table. Measured on ~120k rows: 20.7ms Seq Scan -> 0.06ms Index
+	// Scan (see loadtest/).
+	_, err = db.Exec(`CREATE INDEX IF NOT EXISTS idx_guesses_game_id ON guesses (game_id)`)
 	// one row per word the player has met, so review scheduling is per word and
 	// measured in days rather than in rounds played
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS word_reviews (
