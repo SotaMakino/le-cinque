@@ -70,6 +70,15 @@ let masculineColor = "#008c45" // flag green
 let feminineColor = "#cd212a" // flag red
 let neutralColor = "#7a7a7a" // gray — not a gendered noun
 
+// a pair's tiles are all tinted by its Italian noun gender: "m" green,
+// "f" red, anything else (non-noun, or missing) neutral gray
+let tileColor = gender =>
+  switch gender {
+  | "m" => masculineColor
+  | "f" => feminineColor
+  | _ => neutralColor
+  }
+
 @react.component
 let make = () => {
   let (game, setGame) = React.useState(() => None)
@@ -628,14 +637,6 @@ let make = () => {
           </div>}
       {error == "" ? React.null : <p className="error" role="alert"> {React.string(error)} </p>}
       {
-        // a word's tiles are all tinted by its Italian noun gender: masculine
-        // green, feminine red, anything else gray
-        let tileColor = gender =>
-          switch gender {
-          | "m" => masculineColor
-          | "f" => feminineColor
-          | _ => neutralColor
-          }
         let missCount = g.wrong->Belt.Array.length
         <DndKit.DndContext
           sensors
