@@ -2,7 +2,7 @@
 
 // prompt = the word shown in full; tiles = the answer being spelled ("" = hidden).
 // Which language is which depends on the round's direction.
-type pair = {prompt: string, tiles: array<string>}
+type pair = {prompt: string, tiles: array<string>, gender: string} // gender: "m" | "f" | ""
 
 // guest = true means anonymous play; a signed-in account shows its name + count.
 // plays is the global tally of rounds dealt (all players), shown as the issue N.
@@ -63,10 +63,12 @@ let keyboardRows = [
   ["Z", "X", "C", "V", "B", "N", "M"],
 ]
 
-// revealed letters wear the Italian flag: il verde for repeated characters,
-// il rosso for one-off ones (official tricolore values)
-let uniqueColor = "#cd212a" // flag red
-let repeatedColor = "#008c45" // flag green
+// revealed letters wear the Italian flag by the word's gender: il verde for
+// masculine nouns, il rosso for feminine ones (official tricolore values); any
+// other word stays neutral gray
+let masculineColor = "#008c45" // flag green
+let feminineColor = "#cd212a" // flag red
+let neutralColor = "#7a7a7a" // gray — not a gendered noun
 
 @react.component
 let make = () => {
@@ -626,24 +628,14 @@ let make = () => {
           </div>}
       {error == "" ? React.null : <p className="error" role="alert"> {React.string(error)} </p>}
       {
-        // a hit reveals a letter everywhere at once, so counting revealed
-        // tiles gives each letter's true number of occurrences
-        let letterCounts = {
-          let m = Js.Dict.empty()
-          g.pairs->Belt.Array.forEach(p =>
-            p.tiles->Belt.Array.forEach(l =>
-              if l != "" {
-                m->Js.Dict.set(l, m->Js.Dict.get(l)->Belt.Option.getWithDefault(0) + 1)
-              }
-            )
-          )
-          m
-        }
-        // repeated characters show red, one-off characters green
-        let tileColor = letter =>
-          letterCounts->Js.Dict.get(letter)->Belt.Option.getWithDefault(0) > 1
-            ? repeatedColor
-            : uniqueColor
+        // a word's tiles are all tinted by its Italian noun gender: masculine
+        // green, feminine red, anything else gray
+        let tileColor = gender =>
+          switch gender {
+          | "m" => masculineColor
+          | "f" => feminineColor
+          | _ => neutralColor
+          }
         let missCount = g.wrong->Belt.Array.length
         <DndKit.DndContext
           sensors
@@ -690,7 +682,7 @@ let make = () => {
                         : <div
                             key={i->Belt.Int.toString}
                             className="tile revealed"
-                            style={{backgroundColor: tileColor(letter)}}>
+                            style={{backgroundColor: tileColor(p.gender)}}>
                             {React.string(letter)}
                           </div>
                     )

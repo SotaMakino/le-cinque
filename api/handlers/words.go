@@ -13,12 +13,15 @@ type vocab struct {
 	Italian string
 	English string
 	Theme   string
+	Gender  string // "m" masculine, "f" feminine, "" not a gendered noun
 }
 
 // wordsTSV is the curriculum, kept as data rather than Go literals: one
-// "ITALIAN<tab>ENGLISH" pair per line, grouped by "#" theme comments. It holds
-// 1500+ essential beginner words. Accented words (caffè, città, lunedì, …) are
-// excluded so the game stays on plain A–Z.
+// "ITALIAN<tab>ENGLISH<tab>GENDER" row per line, grouped by "#" theme comments.
+// GENDER is "m", "f", or empty for words that are not gendered nouns (verbs,
+// adjectives, numbers, adverbs). It holds 1500+ essential beginner words.
+// Accented words (caffè, città, lunedì, …) are excluded so the game stays on
+// plain A–Z.
 //
 //go:embed words.tsv
 var wordsTSV string
@@ -44,14 +47,17 @@ func parseVocab(data string) []vocab {
 			theme = strings.Trim(strings.TrimPrefix(line, "#"), " -")
 			continue
 		}
-		it, en, ok := strings.Cut(line, "\t")
+		it, rest, ok := strings.Cut(line, "\t")
 		if !ok {
 			continue
 		}
+		// the gender column is optional; a row without it is treated as ungendered
+		en, gender, _ := strings.Cut(rest, "\t")
 		out = append(out, vocab{
 			Italian: strings.TrimSpace(it),
 			English: strings.TrimSpace(en),
 			Theme:   theme,
+			Gender:  strings.TrimSpace(gender),
 		})
 	}
 	return out
@@ -62,6 +68,16 @@ var english = func() map[string]string {
 	m := make(map[string]string, len(words))
 	for _, v := range words {
 		m[v.Italian] = v.English
+	}
+	return m
+}()
+
+// gender maps an Italian curriculum word to "m", "f", or "" (not a gendered
+// noun), for tinting the answer tiles.
+var gender = func() map[string]string {
+	m := make(map[string]string, len(words))
+	for _, v := range words {
+		m[v.Italian] = v.Gender
 	}
 	return m
 }()

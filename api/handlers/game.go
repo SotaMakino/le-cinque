@@ -61,7 +61,9 @@ type game struct {
 type pair struct {
 	Prompt string   `json:"prompt"` // the word shown in full as the clue
 	Tiles  []string `json:"tiles"`  // one entry per letter of the answer: revealed letter or ""
+	Gender string   `json:"gender"` // "m" masculine, "f" feminine, "" otherwise
 }
+
 
 type gameState struct {
 	ID        int64    `json:"id"`
@@ -444,7 +446,7 @@ func (h *Games) state(g *game) (gameState, error) {
 				out[i] = string(r)
 			}
 		}
-		s.Pairs = append(s.Pairs, pair{Prompt: g.clue(w), Tiles: out})
+		s.Pairs = append(s.Pairs, pair{Prompt: g.clue(w), Tiles: out, Gender: gender[w]})
 	}
 	for l, c := range counts {
 		if found[l] == c {
