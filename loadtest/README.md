@@ -15,6 +15,32 @@ Nothing here changes the app. All files use usernames prefixed `loadtest_`, and
 
 ---
 
+## When to run this (there is no CI for it)
+
+Two layers keep a slowdown from sneaking in:
+
+**Passive net — it tells you.** `middleware.Logging` prints `SLOW …` for any
+request over 200ms (a threshold set above the intentionally slow bcrypt and TTS
+paths). Just using the app surfaces a regression in the server log — no run, no
+memory needed. When you see `SLOW`, come here and measure.
+
+**Deliberate run — when you touch the data path.** Run `k6 run loadtest/play.ts`
+(or just `EXPLAIN` on the one query) when a change could affect query cost:
+
+- add or change a SQL query (new `WHERE` / `JOIN` / `ORDER BY`, or a query in a loop)
+- add an endpoint that reads or writes the DB
+- add a table or column, or touch an index
+- change a hot handler (`Current`, `Guess`, `Me`)
+- before a deploy, as a manual gate
+- bump Go, pgx, or Postgres versions
+
+Frontend, CSS, copy, or word-list edits don't touch query cost — no need.
+
+Quick vs. full: for **one** new query, `EXPLAIN (ANALYZE)` (seconds) beats a full
+`k6` run (~40s) and shows `Seq Scan` vs `Index Scan` immediately.
+
+---
+
 ## One-time setup
 
 ```sh

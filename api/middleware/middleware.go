@@ -117,11 +117,23 @@ func unauthorized(w http.ResponseWriter) {
 	json.NewEncoder(w).Encode(map[string]string{"error": "authentication required"})
 }
 
+// slowRequest is the latency above which Logging flags a request "SLOW". It sits
+// above the app's intentionally slow paths — bcrypt login/signup and the external
+// TTS call — so only a genuine hot-path regression trips it. That gives a
+// no-effort signal, during ordinary use, to run the loadtest/ kit before a
+// slowdown reaches users.
+const slowRequest = 200 * time.Millisecond
+
 func Logging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		next.ServeHTTP(w, r) // call the actual handler
-		log.Printf("%s %s (%s)", r.Method, r.URL.Path, time.Since(start))
+		d := time.Since(start)
+		if d > slowRequest {
+			log.Printf("SLOW %s %s (%s)", r.Method, r.URL.Path, d)
+		} else {
+			log.Printf("%s %s (%s)", r.Method, r.URL.Path, d)
+		}
 	})
 }
 
