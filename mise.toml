@@ -4,6 +4,7 @@
 bun = "1.3.14"
 go = "1.26.2"
 lefthook = "latest"
+k6 = "latest" # load testing, used by loadtest/
 
 [tasks.setup]
 description = "Install the git hooks defined in lefthook.yml"
