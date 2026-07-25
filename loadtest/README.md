@@ -18,7 +18,7 @@ Nothing here changes the app. All files use usernames prefixed `loadtest_`, and
 ## One-time setup
 
 ```sh
-brew install k6          # the load generator (free CLI)
+mise install             # provisions k6 (pinned in mise.toml), the free load generator
 # Postgres + the Go server are already running locally.
 ```
 
