@@ -87,9 +87,6 @@ let make = () => {
   let (account, setAccount) = React.useState(() => None) // fetched player: guest or account
   let (menuOpen, setMenuOpen) = React.useState(() => false)
   let (showAuth, setShowAuth) = React.useState(() => false) // sign-in overlay
-  // true only when the just-won round actually grew the learned tally: the
-  // deep-dive plays then, otherwise the win falls back to a plain banner
-  let (celebrateDive, setCelebrateDive) = React.useState(() => false)
   let (uiLang, setUiLang) = React.useState(() => #it) // UI language, toggled by the flags
   let tr = I18n.strings(uiLang) // localized UI strings
 
@@ -106,7 +103,6 @@ let make = () => {
   // UI language in step with whatever direction the round came back with
   let applyGame = (g: game) => {
     setGame(_ => Some(g))
-    setCelebrateDive(_ => false) // a fresh round disarms the previous win's dive
     setUiLang(_ => g.direction == "en" ? #en : #it)
   }
 
@@ -137,17 +133,6 @@ let make = () => {
     }
   }, (game, error))
 
-  // the deep-dive overlay plays for a won round that grew the learned tally; the
-  // player leaves it by starting the next game from inside the overlay. A win
-  // that added no new words shows the plain banner instead (see the render).
-  let celebrating = switch game {
-  | Some(g) => g.status == "won" && celebrateDive
-  | None => false
-  }
-  let learned = switch account {
-  | Some(acc) => acc.learned
-  | None => 0
-  }
   // only signed-in accounts may call the Cloud TTS endpoint; guests fall back to
   // the browser voice (see Speech.speakWord)
   let authenticated = switch account {
@@ -184,21 +169,7 @@ let make = () => {
               let _ = Js.Global.setTimeout(() => setShake(_ => None), 450)
             }
             if updated.status == "won" {
-              // refresh /me and compare: the deep-dive only plays when this round
-              // actually grew the learned tally; otherwise the win shows a plain
-              // banner (see the render below)
-              let prevLearned = switch account {
-              | Some(acc) => acc.learned
-              | None => 0
-              }
-              switch await ApiClient.request("/me") {
-              | Ok(res) => {
-                  let fetched: me = await ApiClient.json(res)
-                  setAccount(_ => Some(fetched))
-                  setCelebrateDive(_ => fetched.learned > prevLearned)
-                }
-              | Error(_) => setCelebrateDive(_ => false)
-              }
+              loadAccount()->ignore // refresh the tally for the account menu
             }
           }
         | Error(err) if err.status == 400 || err.status == 409 =>
@@ -707,7 +678,7 @@ let make = () => {
                 </button>
               </div>
             </div>
-          | "won" if !celebrateDive =>
+          | "won" =>
             <div className="banner">
               <p> {React.string(tr.wonBanner)} </p>
               <div className="banner-actions">
@@ -720,21 +691,6 @@ let make = () => {
           | _ => React.null
           }}
         </DndKit.DndContext>
-      }
-      {
-        // the deep-dive celebration: the diver walks up to the masthead, jumps,
-        // then plunges into the ocean to a depth set by the words-learned tally
-        // before swimming back to the surface
-        !celebrating
-          ? React.null
-          : <DeepDive
-              learned
-              message={tr.wonBanner}
-              countLabel={tr.wordsLearned}
-              newGameLabel={tr.newGame}
-              busy
-              onNewGame={() => newGame()->ignore}
-            />
       }
       <footer className="app-footer">
         <p className="footer-links">
