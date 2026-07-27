@@ -833,168 +833,494 @@
   font-size: 14px;
 }
 
-/* --- Firework celebration --- */
+/* --- Deep-dive win celebration --- */
 
-/* --- Win celebration overlay --- */
-
-/* a dark, night-sky backdrop the fireworks (z-index 999) burst on top of */
-.win-overlay {
+/* the overlay paints nothing over the page during the walk: only the diver
+   shows, strolling along the masthead rule. The ocean appears once he dives. */
+.dd-overlay {
   position: fixed;
   inset: 0;
   z-index: 300;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  color: #f3f4ff;
-  background:
-    radial-gradient(circle at 50% 28%, rgba(31, 41, 92, 0.9) 0%, rgba(6, 8, 22, 0.95) 62%),
-    rgba(4, 5, 14, 0.9);
-  backdrop-filter: blur(3px);
-  animation: win-fade 0.4s ease-out;
-}
-
-@keyframes win-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.win-close {
-  position: absolute;
-  top: 1rem;
-  right: 1.1rem;
-  background: none;
-  border: none;
-  color: rgba(243, 244, 255, 0.7);
-  font-size: 34px;
-  line-height: 1;
-  cursor: pointer;
-  transition: color 0.15s, transform 0.1s;
-}
-
-.win-close:hover {
-  color: #fff;
-  transform: scale(1.1);
-}
-
-.win-summary {
-  position: relative;
-  z-index: 301; /* above the backdrop; fireworks (999) still burst over it */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.25rem;
-  text-align: center;
-  max-width: 90%;
-}
-
-.win-message {
-  font-family: var(--logo, inherit);
-  font-size: clamp(20px, 5vw, 30px);
-  font-weight: 700;
-  margin: 0;
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6);
-}
-
-.win-count {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.win-count-num {
-  font-family: var(--logo, inherit);
-  font-size: clamp(64px, 18vw, 120px);
-  font-weight: 700;
-  line-height: 1;
-  color: #ffd76a;
-  text-shadow: 0 0 24px rgba(255, 200, 80, 0.55), 0 4px 30px rgba(0, 0, 0, 0.5);
-  font-variant-numeric: tabular-nums;
-  animation: win-pop 0.5s ease-out;
-}
-
-@keyframes win-pop {
-  from {
-    transform: scale(0.6);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.win-count-label {
-  font-family: var(--sans, inherit);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: rgba(243, 244, 255, 0.8);
-}
-
-.win-new {
-  margin-top: 0.5rem;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .win-overlay,
-  .win-count-num {
-    animation: none;
-  }
-}
-
-.firework {
-  position: fixed;
-  width: 0;
-  height: 0;
   pointer-events: none;
-  z-index: 999;
+  color: #eef6ff;
 }
 
-.firework span {
+.dd-overlay > * {
   position: absolute;
-  opacity: 0; /* hidden until its animation-delay elapses */
-  animation-name: fw-burst;
-  animation-timing-function: cubic-bezier(0.16, 0.8, 0.32, 1);
+}
+
+/* the sea fills everything below the surface line (its top is set inline to the
+   measured masthead rule). It snaps in quickly, exactly as the diver jumps. */
+.dd-ocean {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    180deg,
+    #6fc2dd 0%,
+    #2f8fc0 22%,
+    #14608f 48%,
+    #0a3a63 74%,
+    #041d38 100%
+  );
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.dd-surface {
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.8),
+    rgba(255, 255, 255, 0.1)
+  );
+  box-shadow: 0 0 14px rgba(200, 240, 255, 0.6);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.dd-overlay.is-sea .dd-ocean {
+  opacity: 1;
+}
+
+.dd-overlay.is-sea .dd-surface {
+  opacity: 1;
+  animation: dd-ripple 3s ease-in-out infinite;
+}
+
+@keyframes dd-ripple {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+}
+
+/* seabed fronds at the very bottom the deepest dives brush past */
+.dd-seabed {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 72px;
+  opacity: 0;
+  transition: opacity 0.5s ease 0.15s;
+}
+
+.dd-overlay.is-sea .dd-seabed {
+  opacity: 0.9;
+}
+
+.dd-seabed::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 55%;
+  background: linear-gradient(180deg, rgba(3, 20, 40, 0), #06233f 60%, #041a30);
+}
+
+.dd-weed {
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 40px;
+  background: linear-gradient(180deg, #2f9e7a, #14624a);
+  border-radius: 8px 8px 0 0;
+  transform-origin: bottom center;
+  animation: dd-sway 3.5s ease-in-out infinite;
+}
+
+.dd-weed:nth-child(even) {
+  height: 60px;
+  animation-duration: 4.4s;
+}
+
+@keyframes dd-sway {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(9deg);
+  }
+}
+
+/* rising bubbles while the diver is underwater (top set inline to sea level) */
+/* a bubble blown by the diver: emitted at the diver's depth (top set inline),
+   rising --rise px to the surface over its own duration, then removed in JS */
+.dd-bubble {
+  position: absolute;
+  width: var(--sz, 8px);
+  height: var(--sz, 8px);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgba(255, 255, 255, 0.9),
+    rgba(190, 230, 255, 0.25)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  opacity: 0;
+  z-index: 4;
+  animation-name: dd-rise;
+  animation-iteration-count: 1;
+  animation-timing-function: ease-in;
   animation-fill-mode: forwards;
 }
 
-.firework .dot {
-  border-radius: 50%;
-}
-
-.firework .streak {
-  border-radius: 2px;
-}
-
-@keyframes fw-burst {
+@keyframes dd-rise {
   0% {
-    opacity: 1;
-    transform: translate(0, 0) rotate(var(--rot)) scale(1);
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.5);
   }
-  70% {
-    opacity: 1;
+  15% {
+    opacity: 0.85;
   }
   100% {
     opacity: 0;
-    /* drift outward, then gravity drags the last stretch downward */
-    transform: translate(var(--dx), calc(var(--dy) + 55px))
-      rotate(calc(var(--rot) + 160deg)) scale(0.4);
+    transform: translate(-50%, calc(-1 * var(--rise, 40vh))) scale(1.1);
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .firework span {
-    animation: none;
-    opacity: 0;
+/* the depth gauge: a thin scale down the left, 0 at the surface to a full
+   vocabulary at the seabed, with a badge that reads the diver's depth as the
+   words-learned tally */
+.dd-gauge {
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.dd-overlay.is-underwater .dd-gauge {
+  opacity: 1;
+}
+
+.dd-gauge-line {
+  position: absolute;
+  left: 12%;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.15));
+}
+
+.dd-gauge-tick {
+  position: absolute;
+  left: 12%;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transform: translate(-100%, -50%);
+}
+
+.dd-gauge-tick-num {
+  font-family: var(--sans, inherit);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(226, 242, 255, 0.75);
+  font-variant-numeric: tabular-nums;
+}
+
+.dd-gauge-tick-dash {
+  width: 8px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.dd-gauge-marker {
+  position: absolute;
+  left: 12%;
+  display: flex;
+  align-items: center;
+  transform: translateY(-50%);
+  transition-property: top;
+  transition-timing-function: cubic-bezier(0.45, 0.05, 0.3, 1);
+  transition-duration: 1200ms;
+}
+
+/* a small arrow off the scale into the badge */
+.dd-gauge-marker::before {
+  content: "";
+  width: 0;
+  height: 0;
+  margin-left: 4px;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 7px solid #ffd76a;
+}
+
+.dd-gauge-marker .dd-gauge-num {
+  font-family: var(--logo, inherit);
+  font-weight: 700;
+  line-height: 1;
+  font-size: clamp(24px, 6vw, 40px);
+  color: #ffe27a;
+  text-shadow: 0 0 16px rgba(255, 210, 110, 0.5), 0 2px 12px rgba(0, 0, 0, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+.dd-gauge-marker .dd-gauge-cap {
+  font-family: var(--sans, inherit);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: rgba(240, 248, 255, 0.85);
+  max-width: 6.5em;
+  line-height: 1.15;
+}
+
+.dd-gauge-num,
+.dd-gauge-cap {
+  display: block;
+}
+
+.dd-gauge-marker > .dd-gauge-num,
+.dd-gauge-marker > .dd-gauge-cap {
+  padding-left: 6px;
+}
+
+/* the diver: position + orientation change per phase (set inline / by class) */
+.dd-diver {
+  width: 46px;
+  height: 66px;
+  transform: translate(-50%, -50%) rotate(0deg);
+  transition-property: top, left, transform;
+  transition-timing-function: cubic-bezier(0.45, 0.05, 0.3, 1);
+  transition-duration: 1200ms;
+  z-index: 5;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.3));
+}
+
+.dd-diver.is-diving {
+  transform: translate(-50%, -50%) rotate(180deg);
+}
+
+/* floating upright at depth, bobbing gently */
+.dd-diver.is-floating {
+  transform: translate(-50%, -50%) rotate(3deg);
+}
+
+.dd-diver-body {
+  position: absolute;
+  inset: 0;
+  transform-origin: center;
+}
+
+/* the walk is a level glide along the line: a slight side-to-side waddle, with
+   no vertical movement so the diver never hops on the way in */
+.dd-diver.is-walking .dd-diver-body {
+  animation: dd-waddle 0.5s ease-in-out infinite;
+}
+
+/* the jump and dive are one continuous arc driven by the diver's position, so
+   the body itself only kicks once it is underwater */
+.dd-diver.is-diving .dd-diver-body,
+.dd-diver.is-floating .dd-diver-body {
+  animation: dd-kick 0.5s ease-in-out infinite;
+}
+
+@keyframes dd-waddle {
+  0%,
+  100% {
+    transform: rotate(-2.5deg);
+  }
+  50% {
+    transform: rotate(2.5deg);
   }
 }
+
+@keyframes dd-kick {
+  0%,
+  100% {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+
+.dd-diver span {
+  position: absolute;
+}
+
+.dd-head {
+  top: 0;
+  left: 12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #ffd9b0, #f0b382);
+  z-index: 4;
+}
+
+.dd-mask {
+  top: 7px;
+  left: 3px;
+  width: 16px;
+  height: 9px;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #d5f6ff, #7fd8f0);
+  border: 1.5px solid #0d3b52;
+}
+
+.dd-snorkel {
+  top: -3px;
+  right: -3px;
+  width: 3px;
+  height: 17px;
+  border-radius: 2px;
+  background: #ffb84d;
+  transform: rotate(9deg);
+}
+
+.dd-torso {
+  top: 20px;
+  left: 9px;
+  width: 28px;
+  height: 30px;
+  border-radius: 14px 14px 12px 12px;
+  background: linear-gradient(180deg, #2a6fb0, #184a80);
+  z-index: 3;
+}
+
+.dd-tank {
+  top: 22px;
+  left: 5px;
+  width: 7px;
+  height: 21px;
+  border-radius: 5px;
+  background: #d0d7de;
+  z-index: 2;
+}
+
+.dd-arm {
+  top: 22px;
+  width: 7px;
+  height: 20px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #2a6fb0, #184a80);
+  z-index: 2;
+}
+
+.dd-arm-l {
+  left: 3px;
+  transform: rotate(10deg);
+}
+
+.dd-arm-r {
+  right: 3px;
+  transform: rotate(-10deg);
+}
+
+.dd-leg {
+  top: 46px;
+  width: 9px;
+  height: 16px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #184a80, #123a66);
+  z-index: 2;
+}
+
+.dd-leg-l {
+  left: 12px;
+}
+
+.dd-leg-r {
+  right: 12px;
+}
+
+.dd-fin {
+  top: 58px;
+  width: 16px;
+  height: 12px;
+  border-radius: 50% 50% 42% 42%;
+  background: #0f3b30;
+  transform-origin: top center;
+  z-index: 1;
+}
+
+.dd-fin-l {
+  left: 5px;
+  transform: rotate(-8deg);
+}
+
+.dd-fin-r {
+  right: 5px;
+  transform: rotate(8deg);
+}
+
+.dd-diver.is-diving .dd-fin,
+.dd-diver.is-floating .dd-fin {
+  animation: dd-finkick 0.4s ease-in-out infinite;
+}
+
+.dd-diver.is-diving .dd-fin-r,
+.dd-diver.is-floating .dd-fin-r {
+  animation-delay: 0.2s;
+}
+
+@keyframes dd-finkick {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  50% {
+    transform: rotate(12deg);
+  }
+}
+
+.dd-summary {
+  bottom: 8%;
+  left: 50%;
+  transform: translate(-50%, 14px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  text-align: center;
+  max-width: 90%;
+  z-index: 7;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.dd-summary.is-shown {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  pointer-events: auto;
+}
+
+.dd-message {
+  margin: 0;
+  font-family: var(--logo, inherit);
+  font-weight: 700;
+  font-size: clamp(18px, 4.5vw, 26px);
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
+}
+
+.dd-new {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dd-gauge,
+  .dd-diver,
+  .dd-diver-body,
+  .dd-fin,
+  .dd-weed,
+  .dd-bubble,
+  .dd-surface {
+    animation: none !important;
+  }
+  .dd-diver {
+    transition: none;
+  }
+}
+
+
 
 /* --- Newspaper edition: print-style overrides --- */
 

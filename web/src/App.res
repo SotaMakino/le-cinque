@@ -27,8 +27,6 @@ type game = {
   maxMisses: int, // wrong placements allowed before the round is lost
 }
 
-@val @scope("window") external innerWidth: int = "innerWidth"
-@val @scope("window") external innerHeight: int = "innerHeight"
 @val @scope("window") external confirmDialog: string => bool = "confirm"
 
 type keyboardEvent
@@ -85,37 +83,15 @@ let make = () => {
   let (error, setError) = React.useState(() => "")
   let (notice, setNotice) = React.useState(() => "") // rejected letter, transient
   let (busy, setBusy) = React.useState(() => false)
-  let (bursts, setBursts) = React.useState(() => [])
   let (shake, setShake) = React.useState(() => None) // tile flashed on a wrong drop
   let (account, setAccount) = React.useState(() => None) // fetched player: guest or account
   let (menuOpen, setMenuOpen) = React.useState(() => false)
   let (showAuth, setShowAuth) = React.useState(() => false) // sign-in overlay
-  let (winDismissed, setWinDismissed) = React.useState(() => false) // win overlay closed
-  let (winCount, setWinCount) = React.useState(() => 0) // learned tally, counting up
+  // true only when the just-won round actually grew the learned tally: the
+  // deep-dive plays then, otherwise the win falls back to a plain banner
+  let (celebrateDive, setCelebrateDive) = React.useState(() => false)
   let (uiLang, setUiLang) = React.useState(() => #it) // UI language, toggled by the flags
   let tr = I18n.strings(uiLang) // localized UI strings
-
-  let celebrate = () => {
-    let x = innerWidth / 2
-    let y = innerHeight / 3
-    let base = Js.Date.now()->Belt.Float.toInt
-    // a small finale: main burst, then two smaller ones off to the sides
-    let fire = (offsetX, offsetY, scale, afterMs, index) => {
-      let key = base + index
-      let _ = Js.Global.setTimeout(() => {
-        setBursts(prev =>
-          prev->Belt.Array.concat([Fireworks.makeBurst(x + offsetX, y + offsetY, scale, key)])
-        )
-        let _ = Js.Global.setTimeout(
-          () => setBursts(prev => prev->Belt.Array.keep(b => b.key != key)),
-          1400,
-        )
-      }, afterMs)
-    }
-    fire(0, 0, 1.2, 0, 0)
-    fire(-75, -50, 0.8, 170, 1)
-    fire(70, -65, 0.9, 340, 2)
-  }
 
   let loadAccount = async () =>
     switch await ApiClient.request("/me") {
@@ -130,7 +106,7 @@ let make = () => {
   // UI language in step with whatever direction the round came back with
   let applyGame = (g: game) => {
     setGame(_ => Some(g))
-    setWinDismissed(_ => false) // a fresh round re-arms the win celebration
+    setCelebrateDive(_ => false) // a fresh round disarms the previous win's dive
     setUiLang(_ => g.direction == "en" ? #en : #it)
   }
 
@@ -161,9 +137,11 @@ let make = () => {
     }
   }, (game, error))
 
-  // the night-sky win overlay is up while the round is won and not dismissed
+  // the deep-dive overlay plays for a won round that grew the learned tally; the
+  // player leaves it by starting the next game from inside the overlay. A win
+  // that added no new words shows the plain banner instead (see the render).
   let celebrating = switch game {
-  | Some(g) => g.status == "won" && !winDismissed
+  | Some(g) => g.status == "won" && celebrateDive
   | None => false
   }
   let learned = switch account {
@@ -176,58 +154,6 @@ let make = () => {
   | Some(acc) => !acc.guest
   | None => false
   }
-
-  // tick the learned tally up from zero while the overlay is open
-  React.useEffect2(() => {
-    if celebrating && learned > 0 {
-      setWinCount(_ => 0)
-      let current = ref(0)
-      let per = 1400 / learned
-      let ms = per < 40 ? 40 : per
-      let idRef = ref(None)
-      let id = Js.Global.setInterval(() => {
-        if current.contents >= learned {
-          switch idRef.contents {
-          | Some(i) => Js.Global.clearInterval(i)
-          | None => ()
-          }
-        } else {
-          current := current.contents + 1
-          setWinCount(_ => current.contents)
-        }
-      }, ms)
-      idRef := Some(id)
-      Some(() => Js.Global.clearInterval(id))
-    } else {
-      setWinCount(_ => 0)
-      None
-    }
-  }, (celebrating, learned))
-
-  // keep the sky full of fireworks the whole time the overlay is open
-  React.useEffect1(() => {
-    if celebrating {
-      let spawn = () => {
-        let x = Js.Math.random_int(0, innerWidth)
-        let y = Js.Math.random_int(innerHeight / 8, innerHeight * 3 / 5)
-        let key = Js.Date.now()->Belt.Float.toInt + Js.Math.random_int(0, 100000)
-        setBursts(prev =>
-          prev->Belt.Array.concat([Fireworks.makeBurst(x, y, 0.7 +. Js.Math.random() *. 0.9, key)])
-        )
-        let _ = Js.Global.setTimeout(
-          () => setBursts(prev => prev->Belt.Array.keep(b => b.key != key)),
-          1500,
-        )
-      }
-      let id = Js.Global.setInterval(() => {
-        spawn()
-        spawn()
-      }, 250)
-      Some(() => Js.Global.clearInterval(id))
-    } else {
-      None
-    }
-  }, [celebrating])
 
   let (selected, setSelected) = React.useState(() => "") // letter picked from the keyboard
   let (tileCursor, setTileCursor) = React.useState((): option<(int, int)> => None) // arrow-key cursor
@@ -258,8 +184,21 @@ let make = () => {
               let _ = Js.Global.setTimeout(() => setShake(_ => None), 450)
             }
             if updated.status == "won" {
-              celebrate()
-              loadAccount()->ignore // refresh the learned tally for the win summary
+              // refresh /me and compare: the deep-dive only plays when this round
+              // actually grew the learned tally; otherwise the win shows a plain
+              // banner (see the render below)
+              let prevLearned = switch account {
+              | Some(acc) => acc.learned
+              | None => 0
+              }
+              switch await ApiClient.request("/me") {
+              | Ok(res) => {
+                  let fetched: me = await ApiClient.json(res)
+                  setAccount(_ => Some(fetched))
+                  setCelebrateDive(_ => fetched.learned > prevLearned)
+                }
+              | Error(_) => setCelebrateDive(_ => false)
+              }
             }
           }
         | Error(err) if err.status == 400 || err.status == 409 =>
@@ -736,75 +675,66 @@ let make = () => {
             )
             ->React.array}
           </div>
-          {
-            // a loss keeps the inline banner (new game); a win gets the
-            // full-screen night celebration overlay instead (rendered below)
-            g.status == "lost"
-              ? <div className="banner">
-                  <p>
-                    {React.string(
-                      // stable per round (keyed on the game id), varied across rounds
-                      switch tr.lostBanner->Belt.Array.get(
-                        mod(g.id, Belt.Array.length(tr.lostBanner)),
-                      ) {
-                      | Some(m) => m
-                      | None => ""
-                      },
-                    )}
-                  </p>
-                  <p className="saying">
-                    {React.string(
-                      switch tr.sayings->Belt.Array.get(mod(g.id, Belt.Array.length(tr.sayings))) {
-                      | Some(s) => "“" ++ s ++ "”"
-                      | None => ""
-                      },
-                    )}
-                  </p>
-                  <div className="banner-actions">
-                    <button
-                      type_="button"
-                      className="primary"
-                      disabled=busy
-                      onClick={_ => newGame()->ignore}>
-                      {React.string(tr.newGame)}
-                    </button>
-                  </div>
-                </div>
-              : React.null
-          }
-        </DndKit.DndContext>
-      }
-      <Fireworks bursts />
-      {
-        // night-sky celebration: dark backdrop, counting-up tally, and (via the
-        // effects above) a sky full of fireworks that render on top of it
-        !celebrating
-          ? React.null
-          : <div className="win-overlay">
-              <button
-                type_="button"
-                className="win-close"
-                ariaLabel={tr.close}
-                onClick={_ => setWinDismissed(_ => true)}>
-                {React.string("×")}
-              </button>
-              <div className="win-summary">
-                <p className="win-message"> {React.string(tr.wonBanner)} </p>
-                <div className="win-count">
-                  <span className="win-count-num">
-                    {React.string(winCount->Belt.Int.toString)}
-                  </span>
-                  <span className="win-count-label"> {React.string(tr.wordsLearned)} </span>
-                </div>
+          {switch // a loss shows the inline banner; a win that grew the tally plays the
+          // deep-dive overlay (rendered below); a win that added no new words
+          // shows the same-style banner with the Bravo message
+          g.status {
+          | "lost" =>
+            <div className="banner">
+              <p>
+                {React.string(
+                  // stable per round (keyed on the game id), varied across rounds
+                  switch tr.lostBanner->Belt.Array.get(
+                    mod(g.id, Belt.Array.length(tr.lostBanner)),
+                  ) {
+                  | Some(m) => m
+                  | None => ""
+                  },
+                )}
+              </p>
+              <p className="saying">
+                {React.string(
+                  switch tr.sayings->Belt.Array.get(mod(g.id, Belt.Array.length(tr.sayings))) {
+                  | Some(s) => "“" ++ s ++ "”"
+                  | None => ""
+                  },
+                )}
+              </p>
+              <div className="banner-actions">
                 <button
-                  type_="button"
-                  className="primary win-new"
-                  disabled=busy
-                  onClick={_ => newGame()->ignore}>
+                  type_="button" className="primary" disabled=busy onClick={_ => newGame()->ignore}>
                   {React.string(tr.newGame)}
                 </button>
               </div>
             </div>
+          | "won" if !celebrateDive =>
+            <div className="banner">
+              <p> {React.string(tr.wonBanner)} </p>
+              <div className="banner-actions">
+                <button
+                  type_="button" className="primary" disabled=busy onClick={_ => newGame()->ignore}>
+                  {React.string(tr.newGame)}
+                </button>
+              </div>
+            </div>
+          | _ => React.null
+          }}
+        </DndKit.DndContext>
+      }
+      {
+        // the deep-dive celebration: the diver walks up to the masthead, jumps,
+        // then plunges into the ocean to a depth set by the words-learned tally
+        // before swimming back to the surface
+        !celebrating
+          ? React.null
+          : <DeepDive
+              learned
+              message={tr.wonBanner}
+              countLabel={tr.wordsLearned}
+              newGameLabel={tr.newGame}
+              busy
+              onNewGame={() => newGame()->ignore}
+            />
       }
       <footer className="app-footer">
         <p className="footer-links">
