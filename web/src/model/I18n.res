@@ -16,7 +16,6 @@ type t = {
   close: string,
   showItalian: string,
   showEnglish: string,
-  tagline: string,
   mistakes: string,
   wonBanner: string,
   lostBanner: array<string>, // one is shown at random when a round is lost
@@ -57,7 +56,6 @@ let it: t = {
   close: "Chiudi",
   showItalian: "Mostra in italiano",
   showEnglish: "Mostra in inglese",
-  tagline: "Scegli una lettera e mettila esattamente al suo posto — trascinala, oppure tocca la lettera e poi la casella",
   mistakes: "Errori",
   wonBanner: "Bravo! Hai scoperto tutte e cinque le parole.",
   lostBanner: [
@@ -115,7 +113,6 @@ let en: t = {
   close: "Close",
   showItalian: "Show in Italian",
   showEnglish: "Show in English",
-  tagline: "Pick a letter and place it on its exact spot — drag it, or tap the letter then the tile",
   mistakes: "Mistakes",
   wonBanner: "Bravo! You revealed all five words.",
   lostBanner: [

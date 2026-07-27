@@ -150,16 +150,6 @@
   color: var(--accent);
 }
 
-.ghost.danger:hover {
-  border-color: rgba(212, 55, 44, 0.5);
-  color: #d4372c;
-}
-
-.small {
-  padding: 0.3rem 0.7rem;
-  font-size: 14px;
-}
-
 .link {
   background: none;
   border: none;
@@ -717,26 +707,6 @@
   margin: 0 0 1rem;
 }
 
-.field-error {
-  color: #b42318;
-  font-size: 14px;
-  margin: 0.25rem 0 0;
-}
-
-@media (prefers-color-scheme: dark) {
-  .field-error {
-    color: #f97066;
-  }
-}
-
-.empty {
-  text-align: center;
-  padding: 2rem 1rem;
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  margin-top: 1rem;
-}
-
 .loading-screen {
   display: flex;
   flex-direction: column;
@@ -1017,10 +987,6 @@
   color: #cd212a; /* flag red — this is the destructive action */
 }
 
-.tagline {
-  font-style: italic;
-}
-
 .notice {
   font-style: italic;
 }
@@ -1039,8 +1005,7 @@
 .tile,
 .key,
 .banner,
-.error,
-.empty {
+.error {
   border-radius: 0;
 }
 

@@ -1,82 +1,5 @@
 %%raw(`import "./App.css"`)
 
-// prompt = the word shown in full; tiles = the answer being spelled ("" = hidden).
-// Which language is which depends on the round's direction.
-type pair = {prompt: string, tiles: array<string>, gender: string} // gender: "m" | "f" | ""
-
-// guest = true means anonymous play; a signed-in account shows its name + count.
-// plays is the global tally of rounds dealt (all players), shown as the issue N.
-type me = {
-  username: string,
-  learned: int,
-  guest: bool,
-  plays: int,
-  activity: array<int>, // dense daily retrieval counts, oldest first (a Sunday)
-  activityStart: string, // ISO date of activity[0], so each cell can be dated
-}
-
-type game = {
-  id: int,
-  status: string, // "playing" | "won" | "lost" ("lost" = flagged for review)
-  direction: string, // "it" = spell the English word; "en" = spell the Italian one
-  pairs: array<pair>,
-  guessed: array<string>,
-  results: array<bool>, // parallel to guessed: true = correct placement
-  wrong: array<string>,
-  usedUp: array<string>, // letters whose every occurrence is on the board
-  maxMisses: int, // wrong placements allowed before the round is lost
-}
-
-@val @scope("window") external confirmDialog: string => bool = "confirm"
-
-type keyboardEvent
-@get external eventKey: keyboardEvent => string = "key"
-@get external ctrlKey: keyboardEvent => bool = "ctrlKey"
-@get external metaKey: keyboardEvent => bool = "metaKey"
-@get external altKey: keyboardEvent => bool = "altKey"
-@val @scope("document")
-external addKeyListener: (string, keyboardEvent => unit) => unit = "addEventListener"
-@val @scope("document")
-external removeKeyListener: (string, keyboardEvent => unit) => unit = "removeEventListener"
-@send external preventDefault: keyboardEvent => unit = "preventDefault"
-type domTarget
-@get external eventTarget: keyboardEvent => domTarget = "target"
-@get external targetTag: domTarget => string = "tagName"
-@get external targetEditable: domTarget => bool = "isContentEditable"
-
-type pointerEvent
-@val @scope("document")
-external addPointerListener: (string, pointerEvent => unit) => unit = "addEventListener"
-@val @scope("document")
-external removePointerListener: (string, pointerEvent => unit) => unit = "removeEventListener"
-type domNode
-@get external pointerTarget: pointerEvent => domNode = "target"
-@send @return(nullable) external closest: (domNode, string) => option<domNode> = "closest"
-@send external blur: domNode => unit = "blur"
-@val @scope("document") external activeElement: domNode = "activeElement"
-
-let keyboardRows = [
-  ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
-  ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-  ["Z", "X", "C", "V", "B", "N", "M"],
-]
-
-// revealed letters wear the Italian flag by the word's gender: il verde for
-// masculine nouns, il rosso for feminine ones (official tricolore values); any
-// other word stays neutral gray
-let masculineColor = "#008c45" // flag green
-let feminineColor = "#cd212a" // flag red
-let neutralColor = "#7a7a7a" // gray — not a gendered noun
-
-// a pair's tiles are all tinted by its Italian noun gender: "m" green,
-// "f" red, anything else (non-noun, or missing) neutral gray
-let tileColor = gender =>
-  switch gender {
-  | "m" => masculineColor
-  | "f" => feminineColor
-  | _ => neutralColor
-  }
-
 @react.component
 let make = () => {
   let (game, setGame) = React.useState(() => None)
@@ -88,29 +11,30 @@ let make = () => {
   let (menuOpen, setMenuOpen) = React.useState(() => false)
   let (showAuth, setShowAuth) = React.useState(() => false) // sign-in overlay
   let (uiLang, setUiLang) = React.useState(() => #it) // UI language, toggled by the flags
+  let (selected, setSelected) = React.useState(() => "") // letter picked from the keyboard
+  let (tileCursor, setTileCursor) = React.useState((): option<(int, int)> => None) // arrow-key cursor
+  let (navMode, setNavMode) = React.useState(() => false) // true while navigating tiles by arrow keys
+  let (dragging, setDragging) = React.useState(() => false)
+  let sensors = DndKit.useDefaultSensors()
   let tr = I18n.strings(uiLang) // localized UI strings
 
   let loadAccount = async () =>
-    switch await ApiClient.request("/me") {
-    | Ok(res) => {
-        let fetched: me = await ApiClient.json(res)
-        setAccount(_ => Some(fetched))
-      }
+    switch await GameApi.fetchMe() {
+    | Ok(fetched) => setAccount(_ => Some(fetched))
     | Error(_) => ()
     }
 
   // the flags pick both the UI language and the guessing direction, so keep the
   // UI language in step with whatever direction the round came back with
-  let applyGame = (g: game) => {
+  let applyGame = (g: Game.game) => {
     setGame(_ => Some(g))
     setUiLang(_ => g.direction == "en" ? #en : #it)
   }
 
   let loadGame = async () => {
     setError(_ => "")
-    switch await ApiClient.request("/game") {
-    | Ok(res) => {
-        let fetched: game = await ApiClient.json(res)
+    switch await GameApi.fetchGame() {
+    | Ok(fetched) => {
         applyGame(fetched)
         loadAccount()->ignore
       }
@@ -140,23 +64,14 @@ let make = () => {
   | None => false
   }
 
-  let (selected, setSelected) = React.useState(() => "") // letter picked from the keyboard
-  let (tileCursor, setTileCursor) = React.useState((): option<(int, int)> => None) // arrow-key cursor
-  let (navMode, setNavMode) = React.useState(() => false) // true while navigating tiles by arrow keys
-
   // place one letter on one exact tile
-  let placeLetter = async (letter, wordIndex, position) => {
+  let placeLetter = async (letter, wordIndex, position) =>
     switch game {
     | Some(g) if g.status == "playing" && !busy && letter != "" => {
         setBusy(_ => true)
         setNotice(_ => "")
-        switch await ApiClient.request(
-          "/game/guess",
-          ~method_="POST",
-          ~body={"guess": letter, "word": wordIndex, "position": position},
-        ) {
-        | Ok(res) => {
-            let updated: game = await ApiClient.json(res)
+        switch await GameApi.guess(~letter, ~word=wordIndex, ~position) {
+        | Ok(updated) => {
             setGame(_ => Some(updated))
             // deselect a letter once its last tile is on the board
             setSelected(s => updated.usedUp->Belt.Array.some(l => l == s) ? "" : s)
@@ -182,14 +97,12 @@ let make = () => {
       }
     | _ => ()
     }
-  }
 
   let startRound = async path => {
     setBusy(_ => true)
     setNotice(_ => "")
-    switch await ApiClient.request(path, ~method_="POST") {
-    | Ok(res) => {
-        let fetched: game = await ApiClient.json(res)
+    switch await GameApi.start(path) {
+    | Ok(fetched) => {
         applyGame(fetched)
         loadAccount()->ignore // a new round bumps the global play tally (N.)
       }
@@ -203,13 +116,13 @@ let make = () => {
   // tapping a flag re-deals the untouched round in that direction (the server
   // rejects it once a letter is placed, but the UI disables the flags by then)
   let setDirection = async dir =>
-    switch await ApiClient.request("/game/direction", ~method_="POST", ~body={"direction": dir}) {
-    | Ok(res) => applyGame(await ApiClient.json(res))
+    switch await GameApi.setDirection(dir) {
+    | Ok(fetched) => applyGame(fetched)
     | Error(_) => ()
     }
 
   // a physical key press picks the letter up; clicking a tile drops it
-  let handleKey = k => {
+  let handleKey = k =>
     if k->Js.String2.length == 1 && %re("/^[a-z]$/i")->Js.Re.test_(k) {
       let letter = k->Js.String2.toUpperCase
       switch game {
@@ -218,94 +131,19 @@ let make = () => {
       | _ => ()
       }
     }
-  }
 
-  // --- keyboard-only placement: the arrow keys move a cursor across the open
-  // tiles of the pairs, and Enter/Space drops the selected letter there. Only
-  // the empty ("hidden input") slots take part; a pointer press hands control
-  // back to the mouse (see the pointerdown effect below). ---
-
-  // open positions (empty tiles) in a given pair row, as tile indices
-  let openInRow = wi =>
-    switch game {
-    | Some(g) =>
-      switch g.pairs->Belt.Array.get(wi) {
-      | Some(p) =>
-        p.tiles
-        ->Belt.Array.mapWithIndex((pos, l) => (pos, l))
-        ->Belt.Array.keep(((_, l)) => l == "")
-        ->Belt.Array.map(((pos, _)) => pos)
-      | None => []
-      }
-    | None => []
-    }
-  let rowCount = switch game {
-  | Some(g) => g.pairs->Belt.Array.length
-  | None => 0
+  // keyboard-only placement: the arrow keys walk a cursor across the open tiles
+  // (see TileNav) and Enter/Space drops the selected letter there
+  let pairs = switch game {
+  | Some(g) => g.pairs
+  | None => []
   }
-  let firstOpenTile = () => {
-    let rec go = wi =>
-      if wi >= rowCount {
-        None
-      } else {
-        switch openInRow(wi)->Belt.Array.get(0) {
-        | Some(pos) => Some((wi, pos))
-        | None => go(wi + 1)
-        }
-      }
-    go(0)
-  }
-  // the open tile the arrows point at, snapped to a valid slot as the board fills
-  let activeTile = switch tileCursor {
-  | Some((wi, pos)) if openInRow(wi)->Belt.Array.some(p => p == pos) => Some((wi, pos))
-  | _ => firstOpenTile()
-  }
-  // nearest open tile in a row to a reference column, for vertical moves
-  let nearestOpenInRow = (wi, refPos) =>
-    switch openInRow(wi)->Belt.Array.get(0) {
-    | None => None
-    | Some(first) =>
-      let best =
-        openInRow(wi)->Belt.Array.reduce(first, (acc, p) =>
-          Js.Math.abs_int(p - refPos) < Js.Math.abs_int(acc - refPos) ? p : acc
-        )
-      Some((wi, best))
-    }
-  let rec adjacentOpenRow = (wi, refPos, step) =>
-    if wi < 0 || wi >= rowCount {
-      None
-    } else {
-      switch nearestOpenInRow(wi, refPos) {
-      | Some(t) => Some(t)
-      | None => adjacentOpenRow(wi + step, refPos, step)
-      }
-    }
-  // the closest open tile to one side (left/right) within the same row
-  let closerOnSide = (opens, cpos, keepLeft) =>
-    opens->Belt.Array.reduce(None, (acc, p) => {
-      let onSide = keepLeft ? p < cpos : p > cpos
-      if !onSide {
-        acc
-      } else {
-        switch acc {
-        | Some(a) =>
-          let closer = keepLeft ? p > a : p < a
-          closer ? Some(p) : acc
-        | None => Some(p)
-        }
-      }
-    })
+  let activeTile = TileNav.activeTile(pairs, tileCursor)
   let moveTile = dir =>
     switch activeTile {
     | None => ()
-    | Some((cwi, cpos)) =>
-      let target = switch dir {
-      | #left => closerOnSide(openInRow(cwi), cpos, true)->Belt.Option.map(p => (cwi, p))
-      | #right => closerOnSide(openInRow(cwi), cpos, false)->Belt.Option.map(p => (cwi, p))
-      | #up => adjacentOpenRow(cwi - 1, cpos, -1)
-      | #down => adjacentOpenRow(cwi + 1, cpos, 1)
-      }
-      switch target {
+    | Some(cur) =>
+      switch TileNav.moveTarget(pairs, cur, dir) {
       | Some(t) => setTileCursor(_ => Some(t))
       | None => ()
       }
@@ -316,18 +154,20 @@ let make = () => {
     | None => ()
     }
   let handleKeyEvent = e => {
-    let target = e->eventTarget
+    let target = e->DomBindings.eventTarget
     // never hijack the arrows while typing in a form field
     let editable =
-      target->targetTag == "INPUT" || target->targetTag == "TEXTAREA" || target->targetEditable
+      target->DomBindings.targetTag == "INPUT" ||
+      target->DomBindings.targetTag == "TEXTAREA" ||
+      target->DomBindings.targetEditable
     if editable {
       ()
     } else {
-      switch e->eventKey {
+      switch e->DomBindings.eventKey {
       | "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown" =>
-        e->preventDefault
+        e->DomBindings.preventDefault
         setNavMode(_ => true)
-        let dir = switch e->eventKey {
+        let dir = switch e->DomBindings.eventKey {
         | "ArrowLeft" => #left
         | "ArrowRight" => #right
         | "ArrowUp" => #up
@@ -336,7 +176,7 @@ let make = () => {
         moveTile(dir)
       | "Enter" | " " =>
         if navMode {
-          e->preventDefault
+          e->DomBindings.preventDefault
           placeAtCursor()
         }
       | "Escape" => setSelected(_ => "")
@@ -344,11 +184,6 @@ let make = () => {
       }
     }
   }
-
-  // a letter is "in hand" while dragging or while one is selected from the
-  // keyboard; open slots light up so the player can see where it can go
-  let (dragging, setDragging) = React.useState(() => false)
-  let sensors = DndKit.useDefaultSensors()
 
   // dnd-kit reports the drop by ids: the dragged letter and the tile's
   // "wordIndex-position". A drag that ends off any tile leaves over null.
@@ -375,11 +210,11 @@ let make = () => {
 
   React.useEffect0(() => {
     let listener = e =>
-      if !(e->ctrlKey) && !(e->metaKey) && !(e->altKey) {
+      if !(e->DomBindings.ctrlKey) && !(e->DomBindings.metaKey) && !(e->DomBindings.altKey) {
         handleKeyRef.current(e)
       }
-    addKeyListener("keydown", listener)
-    Some(() => removeKeyListener("keydown", listener))
+    DomBindings.addKeyListener("keydown", listener)
+    Some(() => DomBindings.removeKeyListener("keydown", listener))
   })
 
   // a pointer press (click or tap, anywhere) drops the arrow-key cursor so it
@@ -389,23 +224,23 @@ let make = () => {
   React.useEffect0(() => {
     let listener = e => {
       setNavMode(_ => false)
-      switch e->pointerTarget->closest(".keyboard") {
+      switch e->DomBindings.pointerTarget->DomBindings.closest(".keyboard") {
       | Some(_) => () // inside the keyboard: leave the key focused
       | None =>
-        switch activeElement->closest(".key") {
-        | Some(key) => key->blur
+        switch DomBindings.activeElement->DomBindings.closest(".key") {
+        | Some(key) => key->DomBindings.blur
         | None => ()
         }
         // an open tile keeps the letter (its click places it); anywhere else
         // clears the selection so nothing stays highlighted
-        switch e->pointerTarget->closest(".tile.open") {
+        switch e->DomBindings.pointerTarget->DomBindings.closest(".tile.open") {
         | Some(_) => ()
         | None => setSelected(_ => "")
         }
       }
     }
-    addPointerListener("pointerdown", listener)
-    Some(() => removePointerListener("pointerdown", listener))
+    DomBindings.addPointerListener("pointerdown", listener)
+    Some(() => DomBindings.removePointerListener("pointerdown", listener))
   })
 
   // signing in or out swaps the player identity, so reload the round (now keyed
@@ -424,7 +259,7 @@ let make = () => {
   // deleting the account wipes it server-side and drops the browser back to
   // anonymous guest play, so reuse the same reload path as signing out
   let handleDeleteAccount = async () =>
-    if confirmDialog(tr.deleteConfirm) {
+    if DomBindings.confirmDialog(tr.deleteConfirm) {
       let _ = await AuthApi.deleteAccount()
       afterAuthChange()
     }
@@ -439,259 +274,57 @@ let make = () => {
   }
 
   switch game {
-  | None =>
-    // no game yet: still loading, or the initial load failed
-    error == ""
-      ? <main className="app">
-          <div className="loading-screen">
-            <div className="spinner" />
-            <p> {React.string(tr.connecting)} </p>
-          </div>
-        </main>
-      : <main className="app">
-          <div className="loading-screen">
-            <p className="error" role="alert"> {React.string(tr.serverWeak)} </p>
-          </div>
-        </main>
+  | None => <LoadingScreen lang=uiLang error />
   | Some(g) =>
     <main className="app">
-      <header className="app-header">
-        <div className="dateline">
-          <span>
-            {React.string(
-              switch account {
-              | Some(acc) => NumberWords.issueLabel(uiLang, acc.plays)
-              | None => uiLang == #it ? "N. —" : "No. —"
-              },
-            )}
-          </span>
-          <div className="dateline-meta">
-            <span className="dateline-date"> {React.string(I18n.editionDate(uiLang))} </span>
-            <span className="dateline-sep"> {React.string("|")} </span>
-            {switch account {
-            | Some(acc) if !acc.guest =>
-              // signed in: name opens a popup with the vocabulary count + log out
-              <div className="account">
-                <button
-                  type_="button"
-                  className="username"
-                  ariaLabel={tr.account}
-                  onClick={_ => toggleMenu()}>
-                  {React.string(acc.username)}
-                </button>
-                {!menuOpen
-                  ? React.null
-                  : <AccountMenu
-                      lang=uiLang
-                      learned=acc.learned
-                      activity=acc.activity
-                      activityStart=acc.activityStart
-                      onClose={() => setMenuOpen(_ => false)}
-                      onLogout={() => handleLogout()->ignore}
-                      onDelete={() => handleDeleteAccount()->ignore}
-                    />}
-              </div>
-            | _ =>
-              // guest: a link to sign in and start tracking learned words
-              <div className="account">
-                <button type_="button" className="username" onClick={_ => setShowAuth(_ => true)}>
-                  {React.string(tr.signIn)}
-                </button>
-              </div>
-            }}
-          </div>
-        </div>
-        <h1>
-          {React.string("Le ")}
-          <span className="cinque"> {React.string("Cinque")} </span>
-        </h1>
-        {
-          // the flags choose the guessing direction, so they lock once the
-          // round is under way — you can only switch on a fresh board
-          let locked = g.guessed->Belt.Array.length > 0
-          <div className="flag-row">
-            <button
-              type_="button"
-              className={g.direction == "it" ? "flag active" : "flag"}
-              ariaLabel={tr.showItalian}
-              disabled=locked
-              onClick={_ => setDirection("it")->ignore}>
-              {React.string(`🇮🇹`)}
-            </button>
-            <span className="flag-sep"> {React.string("|")} </span>
-            <button
-              type_="button"
-              className={g.direction == "en" ? "flag active" : "flag"}
-              ariaLabel={tr.showEnglish}
-              disabled=locked
-              onClick={_ => setDirection("en")->ignore}>
-              {React.string(`🇺🇸`)}
-            </button>
-          </div>
-        }
-      </header>
-      {!showAuth
-        ? React.null
-        : <div className="auth-overlay">
-            <div className="menu-backdrop" onClick={_ => setShowAuth(_ => false)} />
-            <div className="auth-modal" role="dialog">
-              <button
-                type_="button"
-                className="ghost auth-close"
-                ariaLabel={tr.close}
-                onClick={_ => setShowAuth(_ => false)}>
-                {React.string("×")}
-              </button>
-              <AuthForm lang=uiLang onSuccess={() => afterAuthChange()} />
-            </div>
-          </div>}
+      <Masthead
+        lang=uiLang
+        account
+        menuOpen
+        direction=g.direction
+        locked={g.guessed->Belt.Array.length > 0}
+        onToggleMenu={() => toggleMenu()}
+        onSignIn={() => setShowAuth(_ => true)}
+        onSetDirection={dir => setDirection(dir)->ignore}
+        onCloseMenu={() => setMenuOpen(_ => false)}
+        onLogout={() => handleLogout()->ignore}
+        onDelete={() => handleDeleteAccount()->ignore}
+      />
+      {showAuth
+        ? <AuthModal
+            lang=uiLang onClose={() => setShowAuth(_ => false)} onSuccess={() => afterAuthChange()}
+          />
+        : React.null}
       {error == "" ? React.null : <p className="error" role="alert"> {React.string(error)} </p>}
-      {
-        let missCount = g.wrong->Belt.Array.length
-        <DndKit.DndContext
-          sensors
-          onDragStart={_ => setDragging(_ => true)}
-          onDragEnd={handleDragEnd}
-          onDragCancel={() => setDragging(_ => false)}>
-          <div className="pairs">
-            {
-              // the 🙊 pronounces the prompt word in its own language: Italian
-              // when spelling English, English when spelling Italian
-              let promptLang = g.direction == "en" ? "en-US" : "it-IT"
-              g.pairs
-              ->Belt.Array.mapWithIndex((wi, p) =>
-                <div key=p.prompt className="pair-row">
-                  <span className="italian">
-                    <button
-                      type_="button"
-                      className="speak"
-                      title={I18n.pronounce(uiLang, p.prompt)}
-                      ariaLabel={I18n.pronounce(uiLang, p.prompt)}
-                      onClick={_ => Speech.speakWord(p.prompt, promptLang, ~authenticated)}>
-                      {React.string(`🙊`)}
-                    </button>
-                    {React.string(p.prompt)}
-                  </span>
-                  <div className="english-tiles">
-                    {p.tiles
-                    ->Belt.Array.mapWithIndex((i, letter) =>
-                      letter == ""
-                        ? {
-                            let armed = selected != "" || dragging
-                            <DndKit.Droppable
-                              key={i->Belt.Int.toString}
-                              dropId={`${wi->Belt.Int.toString}-${i->Belt.Int.toString}`}
-                              className={"tile open" ++
-                              (armed ? " armed" : "") ++
-                              (shake == Some((wi, i)) ? " shake" : "") ++ (
-                                navMode && activeTile == Some((wi, i)) ? " tile-cursor" : ""
-                              )}
-                              armed
-                              onClick={_ => placeLetter(selected, wi, i)->ignore}
-                            />
-                          }
-                        : <div
-                            key={i->Belt.Int.toString}
-                            className="tile revealed"
-                            style={{backgroundColor: tileColor(p.gender)}}>
-                            {React.string(letter)}
-                          </div>
-                    )
-                    ->React.array}
-                  </div>
-                </div>
-              )
-              ->React.array
-            }
-          </div>
-          // always rendered with reserved height, so guess feedback never
-          // shifts the keyboard below it
-          <p className="notice" role="alert"> {React.string(notice)} </p>
-          <div className="tries">
-            <span className="tries-label"> {React.string(tr.mistakes)} </span>
-            {Belt.Array.makeBy(g.maxMisses, i =>
-              <span
-                key={i->Belt.Int.toString} className={i < missCount ? "try-dot spent" : "try-dot"}
-              />
-            )->React.array}
-            <span className="tries-count">
-              {React.string(`${missCount->Belt.Int.toString} / ${g.maxMisses->Belt.Int.toString}`)}
-            </span>
-          </div>
-          <div className="keyboard">
-            {keyboardRows
-            ->Belt.Array.mapWithIndex((ri, row) =>
-              <div key={ri->Belt.Int.toString} className="kb-row">
-                {row
-                ->Belt.Array.map(letter => {
-                  // a fully placed letter leaves the keyboard for the board
-                  let usedUp = g.usedUp->Belt.Array.some(l => l == letter)
-                  let cls = switch (usedUp, selected == letter) {
-                  | (true, _) => "key used"
-                  | (false, true) => "key selected"
-                  | _ => "key"
-                  }
-                  <DndKit.Draggable
-                    key=letter
-                    letter
-                    label=letter
-                    className=cls
-                    disabled=usedUp
-                    dragDisabled={usedUp || g.status != "playing"}
-                    onClick={_ => setSelected(s => s == letter ? "" : letter)}
-                  />
-                })
-                ->React.array}
-              </div>
-            )
-            ->React.array}
-          </div>
-          {switch // a loss shows the inline banner; a win that grew the tally plays the
-          // deep-dive overlay (rendered below); a win that added no new words
-          // shows the same-style banner with the Bravo message
-          g.status {
-          | "lost" =>
-            <div className="banner">
-              <p>
-                {React.string(
-                  // stable per round (keyed on the game id), varied across rounds
-                  switch tr.lostBanner->Belt.Array.get(
-                    mod(g.id, Belt.Array.length(tr.lostBanner)),
-                  ) {
-                  | Some(m) => m
-                  | None => ""
-                  },
-                )}
-              </p>
-              <p className="saying">
-                {React.string(
-                  switch tr.sayings->Belt.Array.get(mod(g.id, Belt.Array.length(tr.sayings))) {
-                  | Some(s) => "“" ++ s ++ "”"
-                  | None => ""
-                  },
-                )}
-              </p>
-              <div className="banner-actions">
-                <button
-                  type_="button" className="primary" disabled=busy onClick={_ => newGame()->ignore}>
-                  {React.string(tr.newGame)}
-                </button>
-              </div>
-            </div>
-          | "won" =>
-            <div className="banner">
-              <p> {React.string(tr.wonBanner)} </p>
-              <div className="banner-actions">
-                <button
-                  type_="button" className="primary" disabled=busy onClick={_ => newGame()->ignore}>
-                  {React.string(tr.newGame)}
-                </button>
-              </div>
-            </div>
-          | _ => React.null
-          }}
-        </DndKit.DndContext>
-      }
+      <DndKit.DndContext
+        sensors
+        onDragStart={_ => setDragging(_ => true)}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setDragging(_ => false)}>
+        <Board
+          pairs=g.pairs
+          direction=g.direction
+          selected
+          dragging
+          shake
+          navMode
+          activeTile
+          authenticated
+          lang=uiLang
+          onPlace={(letter, wi, pos) => placeLetter(letter, wi, pos)->ignore}
+        />
+        // always rendered with reserved height, so guess feedback never shifts
+        // the keyboard below it
+        <p className="notice" role="alert"> {React.string(notice)} </p>
+        <MissDots label=tr.mistakes maxMisses=g.maxMisses missCount={g.wrong->Belt.Array.length} />
+        <Keyboard
+          usedUp=g.usedUp
+          selected
+          status=g.status
+          onSelect={letter => setSelected(s => s == letter ? "" : letter)}
+        />
+        <Banner lang=uiLang status=g.status gameId=g.id busy onNewGame={() => newGame()->ignore} />
+      </DndKit.DndContext>
       <footer className="app-footer">
         <p className="footer-links">
           <span className="footer-copy"> {React.string(`© 2026 Sota Makino`)} </span>
