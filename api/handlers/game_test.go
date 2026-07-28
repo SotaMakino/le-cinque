@@ -638,6 +638,36 @@ func TestMe_ActivityCalendarCountsRetrievalsPerDay(t *testing.T) {
 	}
 }
 
+func TestMe_YearWordsSumsCurrentYearOnly(t *testing.T) {
+	h := setupGames(t)
+	at := time.Date(2026, 7, 22, 10, 0, 0, 0, time.UTC)
+	freezeClock(t, at)
+
+	// two retrievals back in January and three today both fall in 2026; a row
+	// from last New Year's Eve must not count toward the year-to-date total
+	if _, err := h.DB.Exec(
+		`INSERT INTO study_days (username, day, count) VALUES
+			('ann', '2026-01-05', 2), ('ann', $1::date, 3), ('ann', '2025-12-31', 9)`,
+		at); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	h.Me(rec, asUser("ann", "GET", "/me", ""))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	var body struct {
+		YearWords int `json:"yearWords"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatal(err)
+	}
+	if body.YearWords != 5 {
+		t.Errorf("expected 5 words this year (2 + 3), got %d", body.YearWords)
+	}
+}
+
 func TestRecordReviews_LeakedWordEarnsNothing(t *testing.T) {
 	h := setupGames(t)
 	at := time.Date(2026, 7, 24, 12, 0, 0, 0, time.UTC)

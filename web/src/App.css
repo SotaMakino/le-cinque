@@ -961,6 +961,19 @@
   background: var(--accent);
 }
 
+/* year-to-date retrieval total, captioning the calendar */
+.menu-cal-total {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--text);
+  margin: 0;
+}
+
+.menu-cal-total-n {
+  font-weight: 700;
+  color: var(--accent);
+}
+
 /* borderless text actions, side by side */
 .menu-actions {
   display: flex;

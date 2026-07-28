@@ -14,6 +14,7 @@ type me = {
   plays: int,
   activity: array<int>, // dense daily retrieval counts, oldest first (a Sunday)
   activityStart: string, // ISO date of activity[0], so each cell can be dated
+  yearWords: int, // total genuine retrievals since 1 January (year-to-date)
 }
 
 type game = {

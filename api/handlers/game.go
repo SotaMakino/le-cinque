@@ -498,6 +498,18 @@ func (h *Games) Me(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
 	}
+	// a year-to-date tally shown beneath the calendar: every genuine retrieval
+	// since 1 January. Unlike the 13-week grid this spans the whole current year,
+	// so it needs its own sum rather than adding up the window's cells
+	at := now()
+	yearStart := time.Date(at.Year(), 1, 1, 0, 0, 0, 0, at.Location())
+	var yearWords int
+	if err := h.DB.QueryRow(
+		"SELECT COALESCE(SUM(count), 0) FROM study_days WHERE username = $1 AND day >= $2::date",
+		user, yearStart).Scan(&yearWords); err != nil {
+		writeError(w, http.StatusInternalServerError, "query failed")
+		return
+	}
 	// guest players play anonymously; only signed-in accounts show a name and
 	// a persisted vocabulary count in the UI
 	w.Header().Set("Content-Type", "application/json")
@@ -508,6 +520,7 @@ func (h *Games) Me(w http.ResponseWriter, r *http.Request) {
 		"plays":         plays,
 		"activity":      activity,
 		"activityStart": start.Format("2006-01-02"),
+		"yearWords":     yearWords,
 	})
 }
 

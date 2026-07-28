@@ -16,6 +16,7 @@ let make = (
   ~learned: int,
   ~activity: array<int>,
   ~activityStart: string,
+  ~yearWords: int,
   ~onClose: unit => unit,
   ~onLogout: unit => unit,
   ~onDelete: unit => unit,
@@ -84,6 +85,19 @@ let make = (
             )->React.array
           }
         </div>
+        <p className="menu-cal-total">
+          <span className="menu-cal-total-n"> {React.string(yearWords->Belt.Int.toString)} </span>
+          {React.string(
+            // "14 words practiced · this year" — noun and adjective both agree
+            // with the count (it: parola praticata / parole praticate)
+            " " ++
+            (yearWords == 1 ? tr.dayWord : tr.dayWords) ++
+            " " ++
+            (yearWords == 1 ? tr.practicedOne : tr.practicedMany) ++
+            " · " ++
+            tr.thisYear,
+          )}
+        </p>
       </div>
       <div className="menu-actions">
         <button type_="button" className="link menu-logout" onClick={_ => onLogout()}>

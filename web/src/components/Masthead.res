@@ -57,6 +57,7 @@ let make = (
                   learned=acc.learned
                   activity=acc.activity
                   activityStart=acc.activityStart
+                  yearWords=acc.yearWords
                   onClose=onCloseMenu
                   onLogout
                   onDelete
