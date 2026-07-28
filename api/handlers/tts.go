@@ -36,15 +36,28 @@ type TTS struct {
 	cache map[string][]byte
 }
 
+const ttsScope = "https://www.googleapis.com/auth/cloud-platform"
+
 // NewTTS builds a TTS from a Google service-account key (the JSON file's
-// contents, e.g. from an env var). An empty string yields an unconfigured TTS
-// that always 503s — handy for local dev without a key.
+// contents, e.g. from an env var). An empty string falls back to Application
+// Default Credentials: on Cloud Run that is the service account attached to the
+// service, so production needs no key at all. Where neither is available —
+// local dev on a bare machine — the TTS is left unconfigured and always 503s,
+// and the frontend uses browser speech instead.
 func NewTTS(ctx context.Context, credentialsJSON string) (*TTS, error) {
 	if strings.TrimSpace(credentialsJSON) == "" {
-		return &TTS{}, nil
+		creds, err := google.FindDefaultCredentials(ctx, ttsScope)
+		if err != nil {
+			return &TTS{}, nil
+		}
+		return &TTS{client: oauth2.NewClient(ctx, creds.TokenSource)}, nil
 	}
-	creds, err := google.CredentialsFromJSON(
-		ctx, []byte(credentialsJSON), "https://www.googleapis.com/auth/cloud-platform",
+	// WithType, not the plain CredentialsFromJSON: it rejects the key unless it
+	// really is a service-account one. The bare version accepts any credential
+	// config, including external_account, which can point token minting at URLs
+	// named in the JSON itself.
+	creds, err := google.CredentialsFromJSONWithType(
+		ctx, []byte(credentialsJSON), google.ServiceAccount, ttsScope,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("parse TTS credentials: %w", err)

@@ -1,0 +1,15 @@
+# What `gcloud run deploy --source api` must NOT upload to Cloud Build.
+#
+# Without this file gcloud uploads everything in api/, including files that are
+# gitignored but still sitting on disk. The build tarball is kept in a GCS
+# bucket in the project, so anything listed here would otherwise outlive the
+# build. The running image is unaffected either way -- the scratch stage in the
+# Dockerfile copies only the compiled binary.
+
+# Real production session cookies, and a local scratch database.
+prod-cookies.txt
+cookies.txt
+app.db
+
+# Tests never run in the image build; go build only needs the main package.
+*_test.go
