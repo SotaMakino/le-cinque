@@ -38,32 +38,21 @@ type TTS struct {
 
 const ttsScope = "https://www.googleapis.com/auth/cloud-platform"
 
-// NewTTS builds a TTS from a Google service-account key (the JSON file's
-// contents, e.g. from an env var). An empty string falls back to Application
-// Default Credentials: on Cloud Run that is the service account attached to the
-// service, so production needs no key at all. Where neither is available —
-// local dev on a bare machine — the TTS is left unconfigured and always 503s,
-// and the frontend uses browser speech instead.
-func NewTTS(ctx context.Context, credentialsJSON string) (*TTS, error) {
-	if strings.TrimSpace(credentialsJSON) == "" {
-		creds, err := google.FindDefaultCredentials(ctx, ttsScope)
-		if err != nil {
-			return &TTS{}, nil
-		}
-		return &TTS{client: oauth2.NewClient(ctx, creds.TokenSource)}, nil
-	}
-	// WithType, not the plain CredentialsFromJSON: it rejects the key unless it
-	// really is a service-account one. The bare version accepts any credential
-	// config, including external_account, which can point token minting at URLs
-	// named in the JSON itself.
-	creds, err := google.CredentialsFromJSONWithType(
-		ctx, []byte(credentialsJSON), google.ServiceAccount, ttsScope,
-	)
+// NewTTS authenticates through Application Default Credentials. On Cloud Run
+// those are the attached service account's, minted by the metadata server on
+// demand, so production stores no key of its own. Locally ADC picks up
+// `gcloud auth application-default login`, or a key file named by
+// GOOGLE_APPLICATION_CREDENTIALS. Where none of those exist the TTS is left
+// unconfigured and always 503s, and the frontend uses browser speech instead —
+// which is what a bare development machine gets, and it is fine.
+func NewTTS(ctx context.Context) *TTS {
+	creds, err := google.FindDefaultCredentials(ctx, ttsScope)
 	if err != nil {
-		return nil, fmt.Errorf("parse TTS credentials: %w", err)
+		log.Printf("TTS disabled: %v", err)
+		return &TTS{}
 	}
 	// oauth2's client refreshes and caches the access token automatically
-	return &TTS{client: oauth2.NewClient(ctx, creds.TokenSource)}, nil
+	return &TTS{client: oauth2.NewClient(ctx, creds.TokenSource)}
 }
 
 const ttsEndpoint = "https://texttospeech.googleapis.com/v1/text:synthesize"

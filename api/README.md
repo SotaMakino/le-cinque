@@ -28,7 +28,6 @@ a traffic spike inside the free tier instead of inside the bill.
 | `PORT` | `8080` | Port to listen on. Cloud Run injects this. |
 | `DATABASE_URL` | `postgres://localhost:5432/hellodb` | Postgres connection string. |
 | `ALLOWED_ORIGIN` | `http://localhost:5173` | Comma-separated CORS origins. |
-| `GOOGLE_TTS_CREDENTIALS` | _(unset)_ | Service-account key JSON for word pronunciation (see below). Not needed on Cloud Run, which authenticates as its own service account. |
 
 ## Word pronunciation (Google Cloud TTS)
 
@@ -43,10 +42,12 @@ service account, and the credentials are read from the metadata server via
 Application Default Credentials. Enabling the **Cloud Text-to-Speech API** on
 the project and deploying with `--service-account` is the whole setup.
 
-Elsewhere — another host, or local development — set
-`GOOGLE_TTS_CREDENTIALS` to the full contents of a service-account JSON key.
-Locally, `gcloud auth application-default login` works too, since ADC picks
-those credentials up as well.
+Locally, `gcloud auth application-default login` is enough — ADC picks those
+credentials up too. On a host that is neither, point
+`GOOGLE_APPLICATION_CREDENTIALS` at a service-account key file.
 
-Without either, `/tts` returns `503` and the app falls back to browser speech,
-so the game still works — Firefox/Safari just get the lower-quality voice.
+Without any of those, `/tts` returns `503` and the app falls back to browser
+speech, so the game still works — Firefox/Safari just get the lower-quality
+voice. There is deliberately no way to pass a key inline as an env var: that
+form was only ever needed on Render, and a downloadable key is the one
+credential here that could be copied off the machine.

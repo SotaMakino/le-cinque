@@ -32,14 +32,10 @@ func main() {
 
 	h := &handlers.Games{DB: db}
 	a := &handlers.Auth{DB: db}
-	// GOOGLE_TTS_CREDENTIALS holds a service-account key JSON. If unset or bad,
-	// TTS stays disabled and the frontend falls back to browser speech, so the
-	// game still runs.
-	t, err := handlers.NewTTS(context.Background(), env("GOOGLE_TTS_CREDENTIALS", ""))
-	if err != nil {
-		log.Printf("TTS disabled: %v", err)
-		t = &handlers.TTS{}
-	}
+	// Authenticates as the Cloud Run service account. Without credentials TTS
+	// stays disabled and the frontend falls back to browser speech, so the game
+	// still runs.
+	t := handlers.NewTTS(context.Background())
 	mux := http.NewServeMux()
 
 	// public
