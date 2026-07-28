@@ -104,19 +104,23 @@ psql "postgres://localhost:5432/hellodb?sslmode=disable" -f loadtest/cleanup.sql
 
 ## Where the latency goes
 
-The k6 kit above measures the warm DB hot path. For reference, warm TTFB
-measured from one laptop against Cloud Run (`asia-northeast1`), July 2026:
+The k6 kit above measures the warm DB hot path. Warm TTFB, one machine, July
+2026, before and after moving the service from `asia-northeast1` to
+`asia-southeast1` to sit beside the Neon database (`aws-ap-southeast-1`):
 
-| Path | Warm TTFB |
-|---|---|
-| `/_coldping` — unregistered route, no DB, no auth | ~40 ms |
-| `/game` — one board read | ~195 ms |
+| Path | Tokyo | Singapore |
+|---|---|---|
+| `GET /game` — one board read | ~200 ms | ~117 ms |
+| `POST /game/guess` | ~340 ms | ~112 ms |
 
-The ~150 ms gap is the Tokyo↔Singapore round trip to Neon
-(`ap-southeast-1`), roughly two sequential queries each paying the crossing.
-Co-locating the database with the service would return most of it. Anything
-measured here only compares meaningfully against numbers from the same machine
-and network, since that difference is otherwise buried in the constant.
+Every query from Tokyo paid a ~70 ms crossing to the database, so the endpoints
+doing the most queries hurt the most — a guess ran four of them. Once the two
+sat in the same region a guess became as cheap as a board read, which is what
+round trips costing nothing looks like. Neon has no Tokyo region, so
+co-locating meant moving the service rather than the database.
+
+Numbers only compare meaningfully against others from the same machine and
+network, since the constant network leg otherwise swamps the difference.
 
 Cold start is a separate, deploy-level metric that a load test cannot see —
 request #1 warms the server and everything after it is warm. Cloud Run without

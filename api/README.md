@@ -1,15 +1,15 @@
 # API
 
 Go backend for Le Cinque. In production it runs on Cloud Run
-(`asia-northeast1`) against a Neon Postgres; the frontend reaches it
-same-origin through the Cloudflare Pages `/api/*` proxy.
+(`asia-southeast1`, alongside the Neon Postgres it queries); the frontend
+reaches it same-origin through the Cloudflare Pages `/api/*` proxy.
 
 Deploying is one command from the repo root:
 
 ```
 gcloud run deploy le-cinque-api \
   --source api \
-  --region asia-northeast1 \
+  --region asia-southeast1 \
   --service-account lecinque@moonlit-text-503205-c7.iam.gserviceaccount.com \
   --set-secrets DATABASE_URL=DATABASE_URL:latest \
   --set-env-vars ALLOWED_ORIGIN=https://le-cinque.pages.dev \
