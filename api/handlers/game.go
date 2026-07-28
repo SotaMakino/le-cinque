@@ -407,11 +407,11 @@ func revealedTiles(g *game, attempts []attempt) map[tileKey]bool {
 	return revealed
 }
 
-func (h *Games) state(g *game) (gameState, error) {
-	attempts, err := h.attempts(g)
-	if err != nil {
-		return gameState{}, err
-	}
+// state renders the board from the round's guesses. It takes the attempts
+// rather than loading them: Guess already holds the list -- it decides won/lost
+// from it -- and re-reading the same rows costs a database round trip, which is
+// ~70ms now that the database sits in a different region from the service.
+func state(g *game, attempts []attempt) gameState {
 	s := gameState{
 		ID:        g.id,
 		Status:    g.status,
@@ -454,18 +454,24 @@ func (h *Games) state(g *game) (gameState, error) {
 		}
 	}
 	sort.Strings(s.UsedUp)
-	return s, nil
+	return s
 }
 
+// writeState loads the round's guesses and writes the board. Handlers holding
+// the attempts already should call writeStateFrom instead.
 func (h *Games) writeState(w http.ResponseWriter, code int, g *game) {
-	s, err := h.state(g)
+	attempts, err := h.attempts(g)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
 	}
+	writeStateFrom(w, code, g, attempts)
+}
+
+func writeStateFrom(w http.ResponseWriter, code int, g *game, attempts []attempt) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(s)
+	json.NewEncoder(w).Encode(state(g, attempts))
 }
 
 // Me returns the signed-in user's name and how many distinct words they have
@@ -703,8 +709,9 @@ func (h *Games) Guess(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	attempts = append(attempts, a) // the guess just saved above
 	if g.correct(a) {
-		revealed = revealedTiles(g, append(attempts, a))
+		revealed = revealedTiles(g, attempts)
 	} else {
 		wrong++
 	}
@@ -725,12 +732,12 @@ func (h *Games) Guess(w http.ResponseWriter, r *http.Request) {
 		}
 		// schedule each word of the round on its own, by what the player
 		// actually retrieved rather than by how the round as a whole ended
-		if err := h.recordReviews(user, g, append(attempts, a)); err != nil {
+		if err := h.recordReviews(user, g, attempts); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not record the round")
 			return
 		}
 	}
-	h.writeState(w, http.StatusOK, g)
+	writeStateFrom(w, http.StatusOK, g, attempts)
 }
 
 func writeError(w http.ResponseWriter, code int, msg string) {
