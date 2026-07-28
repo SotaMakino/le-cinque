@@ -88,14 +88,16 @@ let make = (
         <p className="menu-cal-total">
           <span className="menu-cal-total-n"> {React.string(yearWords->Belt.Int.toString)} </span>
           {React.string(
-            // "14 words practiced · this year" — noun and adjective both agree
+            // "14 words practiced in 2026" — noun and adjective both agree
             // with the count (it: parola praticata / parole praticate)
             " " ++
             (yearWords == 1 ? tr.dayWord : tr.dayWords) ++
             " " ++
             (yearWords == 1 ? tr.practicedOne : tr.practicedMany) ++
-            " · " ++
-            tr.thisYear,
+            " " ++
+            tr.inYear ++
+            " " ++
+            Js.Date.make()->Js.Date.getUTCFullYear->Belt.Float.toInt->Belt.Int.toString,
           )}
         </p>
       </div>

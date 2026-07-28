@@ -8,9 +8,9 @@ type t = {
   wordsLearned: string,
   wordGoal: string,
   recentActivity: string,
-  thisYear: string,
   practicedOne: string, // adjective agreeing with a singular count (it: praticata)
   practicedMany: string, // …and with a plural count (it: praticate)
+  inYear: string, // preposition before the year: "in 2026" / "nel 2026"
   dayWord: string,
   dayWords: string,
   logOut: string,
@@ -51,9 +51,9 @@ let it: t = {
   wordsLearned: "parole imparate",
   wordGoal: "1.500",
   recentActivity: "attività recente",
-  thisYear: "quest'anno",
   practicedOne: "praticata",
   practicedMany: "praticate",
+  inYear: "nel",
   dayWord: "parola",
   dayWords: "parole",
   logOut: "Esci",
@@ -111,9 +111,9 @@ let en: t = {
   wordsLearned: "words learned",
   wordGoal: "1,500",
   recentActivity: "recent activity",
-  thisYear: "this year",
   practicedOne: "practiced",
   practicedMany: "practiced",
+  inYear: "in",
   dayWord: "word",
   dayWords: "words",
   logOut: "Log out",
