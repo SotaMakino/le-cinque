@@ -5,7 +5,8 @@ let keyboardRows = [
 ]
 
 // The on-screen QWERTY keyboard. A letter can be tapped to select it or dragged
-// onto a tile; a fully placed letter greys out and leaves the board.
+// onto a tile; a fully placed letter greys out and leaves the board. Winning
+// hands the emptied keyboard over to the victory lap, which drives the gaps.
 @react.component
 let make = (~usedUp, ~selected, ~status, ~onSelect) =>
   <div className="keyboard">
@@ -35,4 +36,5 @@ let make = (~usedUp, ~selected, ~status, ~onSelect) =>
       </div>
     )
     ->React.array}
+    {status == "won" ? <VictoryDrive /> : React.null}
   </div>

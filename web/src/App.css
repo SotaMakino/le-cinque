@@ -536,6 +536,7 @@
   flex-direction: column;
   gap: 6px;
   margin-top: 1.5rem;
+  position: relative; /* the victory lap is driven over this box */
 }
 
 .kb-row {
@@ -623,6 +624,236 @@
   .key {
     height: 38px;
     font-size: 12px;
+  }
+}
+
+/* --- Victory lap: a Cinquecento drives the gaps the win left behind --- */
+
+/* The clip the drive happens in. VictoryDrive measures how much page is left
+   either side of the keyboard and opens the box out that far, so the car is
+   only ever cut off by the edge of the screen — and never widens the page,
+   because it stops exactly there. Top and bottom stay level with the keys: the
+   drive belongs to the keyboard, and has no business up by the mistake count. */
+.victory-drive {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--drive-left, 0px);
+  right: var(--drive-right, 0px);
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* back to the keyboard's own box: the route is measured in its coordinates */
+.victory-stage {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--drive-left, 0px));
+  right: calc(-1 * var(--drive-right, 0px));
+}
+
+/* the route inked in, its dashes marching the way the car goes */
+.victory-track {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-dasharray: 7 9;
+  stroke-linecap: round;
+  opacity: 0.22;
+  animation: cinque-track 0.9s linear infinite;
+}
+
+@keyframes cinque-track {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+/* The drive itself. Both cinque-drive and cinque-tilt are written out by
+   VictoryRoad from the measured route — a different road every round — and
+   share a length, so the car leans into the slopes while the tricolore it tows
+   stays level behind it. */
+.victory-lane {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  animation: cinque-drive var(--drive-secs, 8s) linear infinite;
+}
+
+/* the car straddles the line the gaps draw, the way a car straddles a lane
+   marking, and leans about its own middle — which keeps even a full lean of it
+   between the top and bottom rows of keys */
+.cinquecento {
+  position: absolute;
+  left: -30px;
+  top: -14px;
+  /* the box is sized so the height, not the width, is what fits the viewBox:
+     the car keeps the height the lane allows it and spends the rest on length */
+  width: 60px;
+  height: 28px;
+  overflow: visible;
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation:
+    cinque-tilt var(--drive-secs, 8s) linear infinite,
+    cinque-bounce 0.34s ease-in-out infinite alternate;
+}
+
+/* the tilt rides the `rotate` property, leaving `transform` free for the bumps */
+@keyframes cinque-bounce {
+  from {
+    transform: translateY(0.7px);
+  }
+  to {
+    transform: translateY(-0.7px);
+  }
+}
+
+.cinque-body {
+  fill: #f5c518; /* giallo positano, near enough */
+}
+
+.cinque-glass {
+  fill: rgba(26, 18, 16, 0.22);
+  stroke-width: 1.6;
+}
+
+/* the pillars, the door shut line and its handle: panel work, drawn lighter
+   than the outline so it reads as a join and not an edge */
+.cinque-seam {
+  stroke-width: 1.4;
+  opacity: 0.75;
+}
+
+.cinque-lamp {
+  fill: #fff3c4;
+  stroke-width: 1.8;
+}
+
+.cinque-tail {
+  fill: #cd212a;
+  stroke-width: 1.4;
+}
+
+.cinque-bumper {
+  stroke-width: 2.6;
+}
+
+.cinque-wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cinque-spin 0.19s linear infinite;
+}
+
+.cinque-tyre {
+  fill: var(--ink);
+}
+
+.cinque-rim {
+  fill: #f5c518; /* the 500's steel wheels came painted like the body */
+  stroke-width: 1.6;
+}
+
+.cinque-vent {
+  fill: var(--ink);
+  stroke: none;
+}
+
+.cinque-hub {
+  fill: #fdf3d0;
+  stroke-width: 1.2;
+}
+
+@keyframes cinque-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* the tricolore the car tows, the way a light aircraft tows one over the beach.
+   It hangs off the lane rather than the car, so it stays level on the slopes. */
+.cinque-banner {
+  position: absolute;
+  box-sizing: border-box;
+  right: 42px;
+  bottom: -13px; /* hangs off the rear bumper, not the roof */
+  padding: 3px 9px;
+  white-space: nowrap;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.3px;
+  color: var(--ink);
+  background: linear-gradient(
+    to right,
+    #008c45 0 8px,
+    var(--paper) 8px calc(100% - 8px),
+    #cd212a calc(100% - 8px) 100%
+  );
+  border: 1.5px solid var(--ink);
+  transform-origin: right center;
+  animation: cinque-wave 0.75s ease-in-out infinite alternate;
+}
+
+/* the tow line back to the car's tail */
+.cinque-banner::after {
+  content: '';
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  width: 13px;
+  border-top: 1.5px solid var(--ink);
+}
+
+@keyframes cinque-wave {
+  from {
+    transform: rotate(-1.5deg) skewY(2.5deg);
+  }
+  to {
+    transform: rotate(1.5deg) skewY(-2.5deg);
+  }
+}
+
+/* the keys shrink on a small phone; the car keeps them company */
+@media (max-width: 380px) {
+  .cinquecento {
+    scale: 0.85;
+  }
+
+  .cinque-banner {
+    font-size: 10px;
+    padding: 2px 8px;
+  }
+}
+
+/* park the car halfway along its road and let the tricolore hang still */
+@media (prefers-reduced-motion: reduce) {
+  .victory-lane {
+    animation: none;
+    transform: translate(var(--park-x), var(--park-y));
+  }
+
+  .cinquecento {
+    animation: none;
+    rotate: var(--park-tilt);
+  }
+
+  .victory-track,
+  .cinque-wheel,
+  .cinque-banner {
+    animation: none;
   }
 }
 

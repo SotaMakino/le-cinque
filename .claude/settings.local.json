@@ -17,7 +17,8 @@
       "Bash(command -v psql postgres docker)",
       "Bash(pg_isready)",
       "Bash(sqlite3 app.db \".tables\")",
-      "Bash(sqlite3 app.db \"SELECT COUNT\\(*\\) FROM users; SELECT COUNT\\(*\\) FROM accounts; SELECT COUNT\\(*\\) FROM sessions;\")"
+      "Bash(sqlite3 app.db \"SELECT COUNT\\(*\\) FROM users; SELECT COUNT\\(*\\) FROM accounts; SELECT COUNT\\(*\\) FROM sessions;\")",
+      "WebSearch"
     ]
   }
 }
