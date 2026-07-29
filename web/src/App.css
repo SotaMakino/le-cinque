@@ -635,12 +635,17 @@
 /* The clip the drive happens in. VictoryDrive measures how much page is left
    either side of the keyboard and opens the box out that far, so the car is
    only ever cut off by the edge of the screen — and never widens the page,
-   because it stops exactly there. Top and bottom stay level with the keys: the
-   drive belongs to the keyboard, and has no business up by the mistake count. */
+   because it stops exactly there. Top and bottom reach a shade past the keys
+   and no further: the drive belongs to the keyboard, and has no business up by
+   the mistake count. */
 .victory-drive {
+  /* that shade: room for a car at full lean. The top and bottom rows are lanes
+     like any other, and a car leaning into one of them stands taller than the
+     row it is in. */
+  --drive-bleed: 10px;
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: calc(-1 * var(--drive-bleed));
+  bottom: calc(-1 * var(--drive-bleed));
   left: var(--drive-left, 0px);
   right: var(--drive-right, 0px);
   overflow: hidden;
@@ -651,8 +656,8 @@
 /* back to the keyboard's own box: the route is measured in its coordinates */
 .victory-stage {
   position: absolute;
-  top: 0;
-  bottom: 0;
+  top: var(--drive-bleed);
+  bottom: var(--drive-bleed);
   left: calc(-1 * var(--drive-left, 0px));
   right: calc(-1 * var(--drive-right, 0px));
 }
