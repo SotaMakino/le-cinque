@@ -630,7 +630,7 @@
   }
 }
 
-/* --- Victory lap: a Cinquecento drives the gaps the win left behind --- */
+/* --- Victory lap: a little Italian car drives the gaps the win left behind --- */
 
 /* The clip the drive happens in. VictoryDrive measures how much page is left
    either side of the keyboard and opens the box out that far, so the car is
@@ -728,8 +728,10 @@
   }
 }
 
+/* the coat of paint is dealt at the win and handed down as a variable, so the
+   fallbacks here are only ever seen if VictoryCar stops setting them */
 .cinque-body {
-  fill: #f5c518; /* giallo positano, near enough */
+  fill: var(--car-body, #f5c518);
 }
 
 .cinque-glass {
@@ -769,7 +771,7 @@
 }
 
 .cinque-rim {
-  fill: #f5c518; /* the 500's steel wheels came painted like the body */
+  fill: var(--car-body, #f5c518); /* steel wheels came painted like the body */
   stroke-width: 1.6;
 }
 
@@ -779,7 +781,7 @@
 }
 
 .cinque-hub {
-  fill: #fdf3d0;
+  fill: var(--car-hub, #fdf3d0);
   stroke-width: 1.2;
 }
 
