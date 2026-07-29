@@ -578,8 +578,11 @@
   cursor: default;
 }
 
-/* a key whose letter is fully placed: it has moved onto the board */
-.key.used {
+/* Keys with nowhere left to go: one whose letter is fully placed has moved onto
+   the board, and one that spells none of the five words has been proved dead by
+   a miss. Both leave a hole for the victory lap to drive through. */
+.key.used,
+.key.absent {
   visibility: hidden;
 }
 

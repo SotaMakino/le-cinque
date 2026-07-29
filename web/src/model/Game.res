@@ -26,8 +26,15 @@ type game = {
   results: array<bool>, // parallel to guessed: true = correct placement
   wrong: array<string>,
   usedUp: array<string>, // letters whose every occurrence is on the board
+  absent: array<string>, // letters tried that spell none of the round's words
   maxMisses: int, // wrong placements allowed before the round is lost
 }
+
+// A letter leaves the keyboard once it has nowhere left to go: either every
+// occurrence of it is on the board, or the player has spent a miss proving it
+// spells none of the five words.
+let isSpent = (g, letter) =>
+  g.usedUp->Belt.Array.some(l => l == letter) || g.absent->Belt.Array.some(l => l == letter)
 
 // revealed letters wear the Italian flag by the word's gender: il verde for
 // masculine nouns, il rosso for feminine ones (official tricolore values); any

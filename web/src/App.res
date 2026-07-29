@@ -73,8 +73,8 @@ let make = () => {
         switch await GameApi.guess(~letter, ~word=wordIndex, ~position) {
         | Ok(updated) => {
             setGame(_ => Some(updated))
-            // deselect a letter once its last tile is on the board
-            setSelected(s => updated.usedUp->Belt.Array.some(l => l == s) ? "" : s)
+            // drop a letter from the hand once it has left the keyboard
+            setSelected(s => Game.isSpent(updated, s) ? "" : s)
             if updated.wrong->Belt.Array.length > g.wrong->Belt.Array.length {
               let left = updated.maxMisses - updated.wrong->Belt.Array.length
               let shown = letter->Js.String2.toLowerCase
@@ -126,7 +126,7 @@ let make = () => {
     if k->Js.String2.length == 1 && %re("/^[a-z]$/i")->Js.Re.test_(k) {
       let letter = k->Js.String2.toUpperCase
       switch game {
-      | Some(g) if g.status == "playing" && !(g.usedUp->Belt.Array.some(l => l == letter)) =>
+      | Some(g) if g.status == "playing" && !Game.isSpent(g, letter) =>
         setSelected(s => s == letter ? "" : letter)
       | _ => ()
       }
@@ -319,6 +319,7 @@ let make = () => {
         <MissDots label=tr.mistakes maxMisses=g.maxMisses missCount={g.wrong->Belt.Array.length} />
         <Keyboard
           usedUp=g.usedUp
+          absent=g.absent
           selected
           status=g.status
           onSelect={letter => setSelected(s => s == letter ? "" : letter)}

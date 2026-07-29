@@ -426,6 +426,48 @@ func TestGuess_CorrectPlacementUsesUpTheLetter(t *testing.T) {
 	}
 }
 
+func TestGuess_LetterInNoWordIsAbsent(t *testing.T) {
+	h := setupGames(t)
+	startRound(t, h, "ann", testRound)
+
+	// Z spells none of TRAIN BANK MUSIC LION PARK, so it is spent for good;
+	// A is in TRAIN, just not at position 0, so it stays in play
+	place(h, "ann", "Z", 0, 1)
+	s := decodeState(t, place(h, "ann", "A", 0, 0))
+
+	if len(s.Absent) != 1 || s.Absent[0] != "Z" {
+		t.Errorf("expected Z alone reported absent, got %+v", s.Absent)
+	}
+	if len(s.Wrong) != 2 {
+		t.Errorf("both placements missed, expected two: %+v", s.Wrong)
+	}
+}
+
+func TestGuess_AbsentLetterReportedOnce(t *testing.T) {
+	h := setupGames(t)
+	startRound(t, h, "ann", testRound)
+
+	// the same dead letter on two tiles is still one letter off the keyboard
+	place(h, "ann", "Z", 0, 1)
+	s := decodeState(t, place(h, "ann", "Z", 1, 0))
+
+	if len(s.Absent) != 1 || s.Absent[0] != "Z" {
+		t.Errorf("expected one entry for Z, got %+v", s.Absent)
+	}
+}
+
+func TestGuess_UntriedLetterIsNotAbsent(t *testing.T) {
+	h := setupGames(t)
+	startRound(t, h, "ann", testRound)
+
+	// Q is in none of the words either, but nothing has been spent finding out
+	s := decodeState(t, place(h, "ann", "A", 0, 2))
+
+	if len(s.Absent) != 0 {
+		t.Errorf("an untried letter must keep its secret, got %+v", s.Absent)
+	}
+}
+
 func TestGuess_RevealedTileRejected(t *testing.T) {
 	h := setupGames(t)
 	startRound(t, h, "ann", testRound)

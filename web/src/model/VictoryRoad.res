@@ -1,7 +1,7 @@
 // The road a won round leaves behind. Every letter that reaches the board takes
-// its key off the keyboard, so the holes left standing spell out a different
-// track after every win. The car reads them left to right and changes lane to
-// keep to the empty keys.
+// its key off the keyboard, and so does every letter proved to spell none of the
+// words, so the holes left standing spell out a different track after every win.
+// The car reads them left to right and changes lane to keep to the empty keys.
 
 // a vacated key, measured in the keyboard box's own coordinates
 type gap = {x: float, y: float, halfWidth: float}

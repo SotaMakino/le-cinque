@@ -81,7 +81,7 @@ let make = () => {
         let box = keyboard->DomBindings.boundingRect
         let gaps =
           keyboard
-          ->DomBindings.queryAll(".key.used")
+          ->DomBindings.queryAll(".key.used, .key.absent")
           ->DomBindings.nodeArray
           ->Belt.Array.map(key => {
             let r = key->DomBindings.boundingRect

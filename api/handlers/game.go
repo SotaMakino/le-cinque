@@ -74,6 +74,7 @@ type gameState struct {
 	Results   []bool   `json:"results"`   // parallel to guessed: true = correct placement
 	Wrong     []string `json:"wrong"`     // the letters of failed placements, in order
 	UsedUp    []string `json:"usedUp"`    // letters whose every occurrence is revealed
+	Absent    []string `json:"absent"`    // letters tried that spell none of the round's words
 	MaxMisses int      `json:"maxMisses"` // wrong placements allowed before losing
 }
 
@@ -421,6 +422,7 @@ func state(g *game, attempts []attempt) gameState {
 		Results:   []bool{},
 		Wrong:     []string{},
 		UsedUp:    []string{},
+		Absent:    []string{},
 		MaxMisses: MaxMisses,
 	}
 	revealed := revealedTiles(g, attempts)
@@ -454,6 +456,18 @@ func state(g *game, attempts []attempt) gameState {
 		}
 	}
 	sort.Strings(s.UsedUp)
+	// A letter tried that spells none of the five words can never be placed
+	// anywhere, so the board has nothing left to say about it and the keyboard
+	// drops it. Only what the player has already spent a miss on is told: the
+	// untried letters keep their secret.
+	seen := map[string]bool{}
+	for _, a := range attempts {
+		if counts[a.letter] == 0 && !seen[a.letter] {
+			seen[a.letter] = true
+			s.Absent = append(s.Absent, a.letter)
+		}
+	}
+	sort.Strings(s.Absent)
 	return s
 }
 
