@@ -182,6 +182,21 @@ let messages = [
   "Magnifico!",
   "Evviva!",
   "Che bello!",
+  "Eccellente!",
+  "Eccezionale!",
+  "Straordinario!",
+  "Stupendo!",
+  "Grandioso!",
+  "Impeccabile!",
+  "Ottimo!",
+  "Alla grande!",
+  "Che spettacolo!",
+  "Che classe!",
+  "Che bravura!",
+  "Da manuale!",
+  "Tutto giusto!",
+  "Cinque su cinque!",
+  "Applausi!",
 ]
 
 // one of anything, drawn fresh. Only ever called once a win, so the lap keeps

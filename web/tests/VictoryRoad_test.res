@@ -237,7 +237,7 @@ describe("VictoryRoad css", () => {
     let vars = VictoryRoad.cssVars(d, ~seenLeft=seen, ~seenRight=seen)
     t->expect(vars->Js.Dict.get("--drive-left"))->Expect.toEqual(Some("-100.0px"))
     t->expect(vars->Js.Dict.get("--drive-right"))->Expect.toEqual(Some("-100.0px"))
-    t->expect(vars->Js.Dict.get("--drive-secs"))->Expect.toEqual(Some("5.4s"))
+    t->expect(vars->Js.Dict.get("--drive-secs"))->Expect.toEqual(Some("7.4s"))
     t->expect(vars->Js.Dict.get("--park-y"))->Expect.toEqual(Some("78.0px"))
   })
 })

@@ -26,13 +26,31 @@ let kerb = 6.0
 // Two gaps this close share a lane. Every key in a row has the same centre line,
 // so this only has to survive the rounding, not tell rows apart.
 let sameLane = 8.0
-let speed = 150.0 // px per second on the flat, whatever the screen is wide
+// px per second on the flat, whatever the screen is wide. Slower than the car
+// would like: the tricolore it tows has something written on it, and 150 took
+// the words past faster than they could be read.
+let speed = 115.0
 // Eighteen horses did not take a hill quickly. A pixel of climb — or of coming
 // back down it — costs the car as much time as a pixel of going along, so it
 // labours up the change of lane and picks the pace back up on the straight.
 let climb = 1.0
 let carAhead = 32.0 // the nose, ahead of the waypoint…
-let carBehind = 175.0 // …and the tail of the tricolore, behind it
+// …and the tail of the tricolore, behind it: the banner hangs 42px back and the
+// longest message in the hat measures 146px of 13px type, plus its tow line.
+// A banner longer than the run-out would still be on screen when the drive
+// loops, which is what the length cap on the messages is for.
+let carBehind = 215.0
+
+// A convoy drives the same road as one car, each of them further back along it,
+// so a follower takes the leader's line: the same holes, the same lean, later.
+// The first one drops back the whole run-out, which is the length of the leader
+// and the tricolore it tows — anything less and it would drive through the flag.
+// The rest keep a car's length and a bit between them.
+let convoyGap = 85.0
+// how far behind the leader the nth car runs, in seconds of its own drive
+let convoyDelay = n => n <= 0 ? 0.0 : (carBehind +. Belt.Int.toFloat(n - 1) *. convoyGap) /. speed
+// and the same in pixels, for the still frame a parked convoy shows
+let convoyBack = n => n <= 0 ? 0.0 : carBehind +. Belt.Int.toFloat(n - 1) *. convoyGap
 
 // the steepest line the car can be drawn on, as a rise per unit of run
 let maxSlope = Js.Math.tan(maxTilt *. Js.Math._PI /. 180.0)

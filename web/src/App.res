@@ -27,6 +27,10 @@ let make = () => {
   // the flags pick both the UI language and the guessing direction, so keep the
   // UI language in step with whatever direction the round came back with
   let applyGame = (g: Game.game) => {
+    // Settle the streak before the render that shows the round, so a lap that
+    // is about to start already knows how many cars it is driving. A round the
+    // browser has counted before — every reload of a finished one — is left be.
+    WinStreak.record(~gameId=g.id, ~status=g.status)
     setGame(_ => Some(g))
     setUiLang(_ => g.direction == "en" ? #en : #it)
   }
@@ -72,6 +76,8 @@ let make = () => {
         setNotice(_ => "")
         switch await GameApi.guess(~letter, ~word=wordIndex, ~position) {
         | Ok(updated) => {
+            // the round this letter just won or lost, counted before it is shown
+            WinStreak.record(~gameId=updated.id, ~status=updated.status)
             setGame(_ => Some(updated))
             // drop a letter from the hand once it has left the keyboard
             setSelected(s => Game.isSpent(updated, s) ? "" : s)
