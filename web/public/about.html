@@ -25,6 +25,57 @@
         vertical-align: -0.05em;
         margin-right: 0.15em;
       }
+
+      /* The diagrams: pen on squared exercise-book paper, the way this would be
+         explained at a desk. Every line is drawn as a slightly wandering path
+         rather than a straight one, so nothing looks machined. */
+      figure {
+        margin: 1.5rem 0;
+      }
+      /* the drawings are legible down to about 460px and then scroll inside
+         their own box, so the page itself never scrolls sideways */
+      .figwrap {
+        overflow-x: auto;
+        border: 1px solid #e0cfc8;
+        background: #fdf6f2;
+      }
+      .sketch {
+        display: block;
+        width: 100%;
+        min-width: 460px;
+        height: auto;
+      }
+      .sketch text {
+        font-family: Georgia, 'Times New Roman', serif;
+        fill: #1a1210;
+      }
+      /* the pen itself */
+      .ink {
+        fill: none;
+        stroke: #1a1210;
+        stroke-width: 1.7;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .ink-thin {
+        stroke-width: 1.2;
+      }
+      /* pencilled-in asides, in whatever handwriting the reader's system has */
+      .note {
+        font-family: 'Bradley Hand', 'Chalkboard SE', 'Segoe Print', 'Ink Free', cursive;
+        fill: #b3161d;
+      }
+      .dashed {
+        stroke-dasharray: 5 5;
+      }
+      .faint {
+        opacity: 0.45;
+      }
+      figcaption {
+        font-size: 0.9rem;
+        line-height: 1.45;
+        margin-top: 0.5rem;
+      }
     </style>
   </head>
   <body>
@@ -51,20 +102,247 @@
     <p>
       Every time you get a word right it comes back later than before — after 1,
       then 3, 7, 21 and 60 days — because a word you keep recalling needs
-      checking less often. Miss it and it drops back to a day, then climbs
-      again. A word that stops being tested is a word being forgotten, so a word
-      you got right still returns; it just returns further off. Already-learned
-      words are never retired from the rotation.
+      checking less often. Fail to recall it and it loses its place on that
+      ladder altogether: it becomes due again at once, held back only a couple of
+      hours so it cannot reappear in the very next round of the same sitting.
+      Recall it then, and it starts the climb over at a day. A word that stops
+      being tested is a word being forgotten, so a word you got right still
+      returns; it just returns further off. Already-learned words are never
+      retired from the rotation.
     </p>
 
-    <p>HOW YOU GET CREDIT</p>
+    <figure>
+      <div class="figwrap">
+        <svg class="sketch" viewBox="0 0 600 215" role="img" aria-hidden="true" focusable="false">
+          <defs>
+            <pattern id="paper3" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M20,0 L0,0 L0,20" fill="none" stroke="#c9b7ae" stroke-width="0.6" />
+            </pattern>
+          </defs>
+          <rect width="600" height="215" fill="url(#paper3)" opacity="0.45" />
+
+          <!-- the hops, each one longer than the last -->
+          <g class="ink">
+            <path d="M42,118 C54,84 82,80 96,117" />
+            <path d="M98,118 C118,74 148,70 166,117" />
+            <path d="M168,118 C196,66 228,62 256,117" />
+            <path d="M258,118 C298,56 348,52 384,117" />
+            <path d="M386,118 C432,44 500,40 544,117" />
+          </g>
+          <g font-size="15" text-anchor="middle" font-style="italic">
+            <text x="69" y="80">1 day</text>
+            <text x="132" y="68">3</text>
+            <text x="212" y="58">7</text>
+            <text x="321" y="48">21</text>
+            <text x="465" y="34">60 days</text>
+          </g>
+
+          <!-- the day line, and where the word comes back -->
+          <path class="ink" d="M30,120 C180,118.6 400,121.4 575,119.4" />
+          <g class="ink ink-thin">
+            <path d="M42,120 C42.6,124 41.4,128 42,132" />
+            <path d="M97,120 C97.6,124 96.4,128 97,132" />
+            <path d="M167,120 C167.6,124 166.4,128 167,132" />
+            <path d="M257,120 C257.6,124 256.4,128 257,132" />
+            <path d="M385,120 C385.6,124 384.4,128 385,132" />
+            <path d="M545,120 C545.6,124 544.4,128 545,132" />
+          </g>
+          <g font-size="14" text-anchor="middle">
+            <text x="42" y="148">learned</text>
+            <text x="97" y="148">day 1</text>
+            <text x="167" y="148">day 4</text>
+            <text x="257" y="148">day 11</text>
+            <text x="385" y="148">day 32</text>
+            <text x="545" y="148">day 92</text>
+          </g>
+
+          <!-- and the way back down: failing to recall it returns the word to the
+               foot of the ladder, not to the first rung. The arc is routed under
+               the day labels so it crosses none of them. -->
+          <path class="ink ink-thin dashed" d="M385,158 C340,192 170,196 50,172" />
+          <path class="ink ink-thin" d="M60,179 C55,176 51,173 49,171.4 C51.6,175 53,180 54,185" />
+          <text x="258" y="207" class="note" font-size="15" text-anchor="middle">no recall, and the climb starts over</text>
+        </svg>
+      </div>
+      <figcaption>
+        The gap before a word returns, expanding as you keep getting it right: 1
+        day, then 3, 7, 21 and 60 — so a word learned today is checked on day 1,
+        4, 11, 32 and 92. Failing to recall it — including having it revealed for
+        you off another word — takes it off the ladder rather than down one rung:
+        it is due again immediately, and the next time you do recall it the climb
+        restarts at a day. Nothing is ever retired: after 60 days the word keeps
+        returning at that spacing.
+      </figcaption>
+    </figure>
+
+    <p>THE TWO COUNTS IN YOUR ACCOUNT</p>
     <p>
-      You get credit for a word the moment you place one correct letter on it
-      yourself. A correct letter is revealed across every word on the board, so
-      a word can end up fully shown without your ever recalling it — and those do
-      not count as learned. The point is to reward producing the word from
-      memory, not seeing it appear.
+      The account panel keeps two separate numbers, and they answer two
+      different questions. <i>Parole imparate</i> — words learned — is
+      <b>how many different words you have ever spelled unaided</b>. A word adds
+      1 to it the first time you manage that, and never again. <i>Parole
+      praticate</i> — words practised, the year total under the calendar — is
+      <b>how much work you have put in</b>, so the same word adds to it every
+      time it comes round.
     </p>
+
+    <figure>
+      <div class="figwrap">
+        <svg class="sketch" viewBox="0 0 600 210" role="img" aria-hidden="true" focusable="false">
+          <defs>
+            <pattern id="paper1" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M20,0 L0,0 L0,20" fill="none" stroke="#c9b7ae" stroke-width="0.6" />
+            </pattern>
+          </defs>
+          <rect width="600" height="210" fill="url(#paper1)" opacity="0.45" />
+
+          <!-- the five occasions you get the same word right -->
+          <text x="8" y="24" font-size="16" font-style="italic">the word LIMONE, five times over a few months</text>
+          <g font-size="15" text-anchor="middle">
+            <text x="248" y="52">1st</text>
+            <text x="313" y="52">2nd</text>
+            <text x="378" y="52">3rd</text>
+            <text x="443" y="52">4th</text>
+            <text x="508" y="52">5th</text>
+            <text x="562" y="52" font-style="italic">total</text>
+          </g>
+          <!-- rule under the column heads, drawn with a wandering hand -->
+          <path class="ink ink-thin faint" d="M232,62 C320,60.6 430,63.4 578,61.4" />
+
+          <!-- row 1: imparate — one tally, then nothing ever again -->
+          <text x="8" y="104" font-size="16">parole imparate</text>
+          <path class="ink" d="M248,86 C249.4,94 247,102 248.4,112" />
+          <g class="ink ink-thin faint">
+            <path d="M306,100 C310,99.4 316,100.6 320,100" />
+            <path d="M371,100 C375,99.4 381,100.6 385,100" />
+            <path d="M436,100 C440,99.4 446,100.6 450,100" />
+            <path d="M501,100 C505,99.4 511,100.6 515,100" />
+          </g>
+          <text x="562" y="106" font-size="19" text-anchor="middle" font-weight="bold">1</text>
+          <path class="ink ink-thin" d="M545,84 C556,82.6 572,84 578,90 C582,97 580,108 574,113 C566,119 550,118 545,112 C541,105 541,90 545,84" />
+          <text x="352" y="132" class="note" font-size="15" text-anchor="middle">only the first time — then it stays put</text>
+
+          <!-- row 2: praticate — a tally every single time -->
+          <text x="8" y="176" font-size="16">parole praticate</text>
+          <g class="ink">
+            <path d="M248,158 C249.4,166 247,174 248.4,184" />
+            <path d="M313,158 C314.4,166 312,174 313.4,184" />
+            <path d="M378,158 C379.4,166 377,174 378.4,184" />
+            <path d="M443,158 C444.4,166 442,174 443.4,184" />
+            <path d="M508,158 C509.4,166 507,174 508.4,184" />
+          </g>
+          <text x="562" y="178" font-size="19" text-anchor="middle" font-weight="bold">5</text>
+          <path class="ink ink-thin" d="M545,156 C556,154.6 572,156 578,162 C582,169 580,180 574,185 C566,191 550,190 545,184 C541,177 541,162 545,156" />
+          <text x="352" y="204" class="note" font-size="15" text-anchor="middle">every time, for as long as you keep playing</text>
+        </svg>
+      </div>
+      <figcaption>
+        The same word, met five times. <i>Parole imparate</i> counts it once — on
+        the first occasion you spell it yourself — and never moves again, so it
+        measures how much vocabulary you have. <i>Parole praticate</i> counts all
+        five, so it measures how much practice you have done. Five correct
+        answers on one word therefore leave <i>imparate</i> at 1 and put
+        <i>praticate</i> at 5.
+      </figcaption>
+    </figure>
+
+    <p>WHICH LETTERS EARN WHICH COUNT</p>
+    <p>
+      Placing a correct letter reveals it on <i>every</i> word on the board at
+      once, so words fill in sideways as you go. The two counts treat that
+      differently, and this is the one rule worth reading twice:
+    </p>
+    <ul>
+      <li>
+        <i>Imparate</i> asks whether you produced every letter of the word
+        <b>anywhere on the board</b> that round. If you did, you can demonstrably
+        spell it, so it counts — even if you never touched that word's own tiles.
+      </li>
+      <li>
+        <i>Praticate</i>, and the review schedule, ask something stricter:
+        whether you placed a letter <b>on that word's own tiles</b>. A word that
+        filled in for free was never actually recalled, so it earns no practice
+        credit and goes back to the foot of the review ladder.
+      </li>
+    </ul>
+
+    <figure>
+      <div class="figwrap">
+        <svg class="sketch" viewBox="0 0 600 250" role="img" aria-hidden="true" focusable="false">
+          <defs>
+            <pattern id="paper2" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M20,0 L0,0 L0,20" fill="none" stroke="#c9b7ae" stroke-width="0.6" />
+            </pattern>
+          </defs>
+          <rect width="600" height="250" fill="url(#paper2)" opacity="0.45" />
+
+          <!-- LEFT: you place a letter on this word yourself -->
+          <text x="22" y="26" font-size="15" font-style="italic">you place a letter on MELONE itself</text>
+          <g class="ink">
+            <path d="M22,44 C36,42.8 50,45.2 62,43.6 C63.4,55 61,66 62.4,76 C50,77.4 36,75 22,76.4 C20.8,66 23.2,55 22,44" />
+            <path d="M66,44 C80,42.8 94,45.2 106,43.6 C107.4,55 105,66 106.4,76 C94,77.4 80,75 66,76.4 C64.8,66 67.2,55 66,44" />
+            <path d="M110,44 C124,42.8 138,45.2 150,43.6 C151.4,55 149,66 150.4,76 C138,77.4 124,75 110,76.4 C108.8,66 111.2,55 110,44" />
+            <path d="M154,44 C168,42.8 182,45.2 194,43.6 C195.4,55 193,66 194.4,76 C182,77.4 168,75 154,76.4 C152.8,66 155.2,55 154,44" />
+            <path d="M198,44 C212,42.8 226,45.2 238,43.6 C239.4,55 237,66 238.4,76 C226,77.4 212,75 198,76.4 C196.8,66 199.2,55 198,44" />
+            <path d="M242,44 C256,42.8 270,45.2 282,43.6 C283.4,55 281,66 282.4,76 C270,77.4 256,75 242,76.4 C240.8,66 243.2,55 242,44" />
+          </g>
+          <g font-size="17" text-anchor="middle" font-weight="bold">
+            <text x="42" y="66">M</text><text x="86" y="66">E</text><text x="130" y="66">L</text>
+            <text x="174" y="66">O</text><text x="218" y="66">N</text><text x="262" y="66">E</text>
+          </g>
+          <!-- the hand: an arrow onto the third tile -->
+          <path class="ink" d="M130,106 C131.4,96 128,88 130,80" />
+          <path class="ink" d="M123,90 C126,84 129,80 130,79 C131,80 134,84 137,90" />
+          <text x="130" y="126" class="note" font-size="15" text-anchor="middle">your L, on this word</text>
+
+          <!-- RIGHT: the word fills in from elsewhere -->
+          <text x="322" y="26" font-size="15" font-style="italic">MELONE fills in from LIMONE</text>
+          <g class="ink dashed">
+            <path d="M322,44 C336,42.8 350,45.2 362,43.6 C363.4,55 361,66 362.4,76 C350,77.4 336,75 322,76.4 C320.8,66 323.2,55 322,44" />
+            <path d="M366,44 C380,42.8 394,45.2 406,43.6 C407.4,55 405,66 406.4,76 C394,77.4 380,75 366,76.4 C364.8,66 367.2,55 366,44" />
+            <path d="M410,44 C424,42.8 438,45.2 450,43.6 C451.4,55 449,66 450.4,76 C438,77.4 424,75 410,76.4 C408.8,66 411.2,55 410,44" />
+            <path d="M454,44 C468,42.8 482,45.2 494,43.6 C495.4,55 493,66 494.4,76 C482,77.4 468,75 454,76.4 C452.8,66 455.2,55 454,44" />
+            <path d="M498,44 C512,42.8 526,45.2 538,43.6 C539.4,55 537,66 538.4,76 C526,77.4 512,75 498,76.4 C496.8,66 499.2,55 498,44" />
+            <path d="M542,44 C556,42.8 570,45.2 582,43.6 C583.4,55 581,66 582.4,76 C570,77.4 556,75 542,76.4 C540.8,66 543.2,55 542,44" />
+          </g>
+          <g font-size="17" text-anchor="middle" font-weight="bold" class="faint">
+            <text x="342" y="66">M</text><text x="386" y="66">E</text><text x="430" y="66">L</text>
+            <text x="474" y="66">O</text><text x="518" y="66">N</text><text x="562" y="66">E</text>
+          </g>
+          <text x="452" y="126" class="note" font-size="15" text-anchor="middle">you never touched these tiles</text>
+
+          <!-- the verdicts -->
+          <path class="ink ink-thin faint" d="M14,146 C180,144.6 400,147.4 592,145.4" />
+          <path class="ink ink-thin faint" d="M310,140 C311.4,170 309,210 310.4,240" />
+
+          <g font-size="15">
+            <text x="14" y="172">imparate <tspan font-weight="bold">+1</tspan></text>
+            <text x="14" y="198">praticate <tspan font-weight="bold">+1</tspan></text>
+            <text x="14" y="228">next review: <tspan font-style="italic">further off</tspan></text>
+            <text x="330" y="172">imparate <tspan font-weight="bold">+1</tspan></text>
+            <text x="330" y="198">praticate <tspan font-weight="bold">+0</tspan></text>
+            <text x="330" y="228">next review: <tspan font-style="italic">straight away</tspan></text>
+          </g>
+          <!-- ticks and a cross, drawn by hand -->
+          <g class="ink">
+            <path d="M262,166 C265,169.6 267,172 268,172.4 C271,166 275,159 280,154" />
+            <path d="M262,192 C265,195.6 267,198 268,198.4 C271,192 275,185 280,180" />
+            <path d="M566,166 C569,169.6 571,172 572,172.4 C575,166 579,159 584,154" />
+            <path d="M568,186 C572,190 576,194 580,198" />
+            <path d="M580,186 C576,190 572,194 568,198" />
+          </g>
+        </svg>
+      </div>
+      <figcaption>
+        Both boards end with MELONE fully revealed, but only the left one was
+        recalled. On the left you placed a letter on MELONE's own tiles: it counts
+        as learned, counts as practice, and its next review moves further off. On
+        the right MELONE filled in from letters you placed on LIMONE, which shares
+        them: it still counts as learned, because you produced every letter and
+        can spell it — but it earns no practice credit and drops to the foot of the
+        ladder, due again straight away.
+      </figcaption>
+    </figure>
 
     <p>WHAT THE TILE COLOURS MEAN</p>
     <p>
@@ -91,7 +369,7 @@
       <li>Retrieval, not re-reading. Trying to recall a word is what fixes it in memory; re-studying a word you already "know" does almost nothing. So the game tests you rather than showing you flashcards.</li>
       <li>Produce, don't recognise. Recalling and spelling a word out beats picking it from a list of options, so you type the letters instead of choosing from a menu.</li>
       <li>Spacing beats cramming, on an expanding schedule. The gap before a word returns grows as you keep getting it right, which is why the intervals stretch from a day out to two months.</li>
-      <li>Keep the answer honest. Credit is given only when you genuinely retrieve a word, so the count reflects what you can actually produce.</li>
+      <li>Keep the answer honest. Credit is given only for letters you produced yourself, so the counts reflect what you can actually spell rather than what the board showed you.</li>
       <li>Cumulative review. Words are never dropped once learned — a word left untested is a word being forgotten.</li>
     </ul>
     <p>
