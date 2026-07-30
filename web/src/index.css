@@ -1,5 +1,11 @@
 /* Self-hosted masthead font: no third-party request, no render-blocking @import.
-   font-display: swap paints the Georgia fallback first, then swaps in Ultra. */
+   font-display: swap paints the Georgia fallback first, then swaps in Ultra.
+
+   The woff2 is the Google Fonts latin subset with every glyph bounding box
+   recomputed. As shipped, seven of them — 'e' and the six glyphs built from it —
+   claim an xMax two units short of the outline, which Firefox reports and then
+   silently corrects on every load. Re-fetching the file upstream brings the
+   warnings back; recompute the boxes again if you do. */
 @font-face {
   font-family: 'Ultra';
   font-style: normal;
