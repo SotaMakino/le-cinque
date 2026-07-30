@@ -197,10 +197,10 @@
 /* language flags flanking the title; the inactive one is dimmed */
 .flag {
   flex-shrink: 0;
+  display: flex;
   background: none;
   border: none;
   padding: 0.1rem 0.2rem;
-  font-size: 20px;
   line-height: 1;
   cursor: pointer;
   opacity: 0.4;
@@ -226,6 +226,66 @@
 
 .flag:active {
   transform: scale(0.9);
+}
+
+/* --- Drawn glyphs --- */
+
+/* The flags and the pronounce speaker, inked like the victory car: one ink
+   outline over flat colour, and every corner rounded off. */
+.glyph {
+  display: block;
+  fill: none;
+  stroke: var(--ink);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.glyph-flag {
+  width: 30px;
+  height: 30px;
+}
+
+.glyph-pole {
+  stroke-width: 1.6;
+}
+
+/* the cloth's edge, drawn over the colours it holds */
+.glyph-cloth {
+  stroke-width: 1.5;
+}
+
+/* the bands, the stripes' white ground, the canton: colour, no edge of its own */
+.glyph-band {
+  stroke: none;
+}
+
+/* four thick strokes of the cloth's own wave, so the stripes flutter with it;
+   butt caps keep their ends flush with the hoist and the fly */
+.glyph-stripe {
+  stroke: #b22234;
+  stroke-width: 1.4;
+  stroke-linecap: butt;
+}
+
+.glyph-star {
+  fill: #f4f5f0;
+  stroke: none;
+}
+
+.glyph-speaker {
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.9;
+}
+
+.glyph-horn {
+  fill: var(--paper);
+}
+
+/* what it is saying, in the headline red */
+.glyph-sound {
+  stroke: var(--accent);
+  stroke-width: 1.7;
 }
 
 /* --- Mistakes indicator --- */
@@ -298,10 +358,10 @@
 }
 
 .speak {
+  display: flex;
   background: none;
   border: none;
   padding: 0;
-  font-size: 15px;
   cursor: pointer;
   opacity: 0.55;
   transition: opacity 0.15s, transform 0.1s;
@@ -429,8 +489,9 @@
     font-size: 22px;
   }
 
-  .speak {
-    font-size: 17px;
+  .glyph-speaker {
+    width: 21px;
+    height: 21px;
   }
 
   .english-tiles {

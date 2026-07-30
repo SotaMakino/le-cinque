@@ -1,4 +1,4 @@
-// The playing board: one row per pair, each with a 🙊 pronounce button, the
+// The playing board: one row per pair, each with a speaker to pronounce it, the
 // prompt word, and the answer tiles. Empty tiles are drop targets that also
 // accept a tap; revealed tiles are tinted by the noun's gender.
 @react.component
@@ -14,7 +14,7 @@ let make = (
   ~lang,
   ~onPlace,
 ) => {
-  // the 🙊 pronounces the prompt word in its own language: Italian when
+  // the speaker pronounces the prompt word in its own language: Italian when
   // spelling English, English when spelling Italian
   let promptLang = direction == "en" ? "en-US" : "it-IT"
   <div className="pairs">
@@ -28,7 +28,7 @@ let make = (
             title={I18n.pronounce(lang, p.prompt)}
             ariaLabel={I18n.pronounce(lang, p.prompt)}
             onClick={_ => Speech.speakWord(p.prompt, promptLang, ~authenticated)}>
-            {React.string(`🙊`)}
+            <Glyphs.Speaker />
           </button>
           {React.string(p.prompt)}
         </span>

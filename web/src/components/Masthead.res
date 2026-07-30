@@ -17,14 +17,14 @@ let make = (
 ) => {
   let tr = I18n.strings(lang)
   // the flags lock once a letter is placed — you can only switch on a fresh board
-  let flag = (dir, emoji, label) =>
+  let flag = (dir, glyph, label) =>
     <button
       type_="button"
       className={direction == dir ? "flag active" : "flag"}
       ariaLabel=label
       disabled=locked
       onClick={_ => onSetDirection(dir)}>
-      {React.string(emoji)}
+      glyph
     </button>
   <header className="app-header">
     <div className="dateline">
@@ -78,9 +78,9 @@ let make = (
       <span className="cinque"> {React.string("Cinque")} </span>
     </h1>
     <div className="flag-row">
-      {flag("it", `🇮🇹`, tr.showItalian)}
+      {flag("it", <Glyphs.Tricolore />, tr.showItalian)}
       <span className="flag-sep"> {React.string("|")} </span>
-      {flag("en", `🇺🇸`, tr.showEnglish)}
+      {flag("en", <Glyphs.StarsAndStripes />, tr.showEnglish)}
     </div>
   </header>
 }
