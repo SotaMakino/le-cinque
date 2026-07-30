@@ -30,6 +30,20 @@ type game = {
   maxMisses: int, // wrong placements allowed before the round is lost
 }
 
+// The rounds these types describe arrive as JSON and are read as records
+// unchecked, so a field the API does not send is not an empty one — it is
+// `undefined`, and the first thing to iterate it throws. The web app and the API
+// deploy separately, and either can be the newer of the two, so a round is
+// filled out on the way in rather than trusted to be complete. Every list the UI
+// walks belongs here; `absent` is the one an older API omits.
+@get @return(nullable) external sentAbsent: game => option<array<string>> = "absent"
+
+let received = g =>
+  switch g->sentAbsent {
+  | Some(_) => g
+  | None => {...g, absent: []}
+  }
+
 // A letter leaves the keyboard once it has nowhere left to go: either every
 // occurrence of it is on the board, or the player has spent a miss proving it
 // spells none of the five words.
