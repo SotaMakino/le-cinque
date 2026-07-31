@@ -41,19 +41,36 @@ let carAhead = 32.0 // the nose, ahead of the waypoint…
 // loops, which is what the length cap on the messages is for.
 let carBehind = 215.0
 
-// A convoy drives the same road as one car, each of them further back along it,
-// so a follower takes the leader's line: the same holes, the same lean, later.
-// The first one drops back the whole run-out, which is the length of the leader
-// and the tricolore it tows — anything less and it would drive through the flag.
-// The rest keep a car's length and a bit between them.
-let convoyGap = 85.0
-// how far behind the leader the nth car runs, in seconds of its own drive
-let convoyDelay = n => n <= 0 ? 0.0 : (carBehind +. Belt.Int.toFloat(n - 1) *. convoyGap) /. speed
-// and the same in pixels, for the still frame a parked convoy shows
-let convoyBack = n => n <= 0 ? 0.0 : carBehind +. Belt.Int.toFloat(n - 1) *. convoyGap
-
 // the steepest line the car can be drawn on, as a rise per unit of run
 let maxSlope = Js.Math.tan(maxTilt *. Js.Math._PI /. 180.0)
+
+// A convoy drives the same road as one car, each of them further back along it,
+// so a follower takes the leader's line: the same holes, the same lean, later.
+// Every car tows a tricolore of its own, so the room one of them takes is the
+// run-out behind it — its own length and the flag off its tail — and the nose of
+// whoever is following.
+let convoyRoom = carBehind +. carAhead
+// A following distance is kept in the drive's own time, and a change of lane
+// spends that time without making much road: at the steepest the car is allowed
+// to climb it pays this much drive for every pixel it makes good. The gap is
+// priced at that rate, so a convoy that keeps its distance up the worst of the
+// climb keeps it everywhere else too, instead of concertinaing into the flag in
+// front of it wherever the road goes up.
+let climbCost = 1.0 +. climb *. maxSlope
+let convoyGap = convoyRoom *. climbCost
+// how far behind the leader the nth car runs, in seconds of its own drive
+let convoyDelay = n => n <= 0 ? 0.0 : Belt.Int.toFloat(n) *. convoyGap /. speed
+// The same for the still frame a parked convoy shows, which is laid out in
+// pixels rather than in drive time and so pays for no climb: a car and its flag
+// is the whole of what it needs.
+let convoyBack = n => n <= 0 ? 0.0 : Belt.Int.toFloat(n) *. convoyRoom
+
+// How many cars this road will string out at once. The drive loops, so a convoy
+// longer than the road wraps around it and the back of it comes up on the leader
+// from behind — a shorter convoy is the better of the two. The road is counted
+// in the drive's own work, climbs and all, because that is what a gap is
+// measured in; a phone holds two of them, a laptop four or five.
+let convoyFits = drive => Js.Math.max_int(1, Js.Math.floor_int(drive.seconds *. speed /. convoyGap))
 
 let clamp = (v, limit) => v > limit ? limit : v < -.limit ? -.limit : v
 let near = (a, b) => Js.Math.abs_float(a -. b) <= sameLane
@@ -271,7 +288,10 @@ let cssVars = (drive, ~seenLeft, ~seenRight) => {
   vars->Js.Dict.set("--drive-left", round(-.seenLeft) ++ "px")
   vars->Js.Dict.set("--drive-right", round(-.seenRight) ++ "px")
   vars->Js.Dict.set("--drive-secs", round(drive.seconds) ++ "s")
-  switch drive.stops->Belt.Array.get(drive.stops->Belt.Array.length / 2) {
+  // The parked frame is the end of the run rather than the middle of it: the
+  // convoy trails a long way back now that every car in it tows a flag, so a
+  // leader parked halfway would leave the rest of it off the left of the screen.
+  switch drive.stops->Belt.Array.get(drive.stops->Belt.Array.length - 2) {
   | Some(parked) => {
       vars->Js.Dict.set("--park-x", round(parked.x) ++ "px")
       vars->Js.Dict.set("--park-y", round(parked.y) ++ "px")

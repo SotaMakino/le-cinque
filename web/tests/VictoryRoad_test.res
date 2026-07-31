@@ -215,6 +215,62 @@ describe("VictoryRoad.build", () => {
   })
 })
 
+describe("VictoryRoad convoy", () => {
+  // where along the road the car is at one moment of the drive, the moment
+  // written the way the keyframes write it: a percentage of the whole
+  let xAt = (d: VictoryRoad.drive, at) =>
+    switch d.stops->Belt.Array.getIndexBy((s: VictoryRoad.stop) => s.at >= at) {
+    | None | Some(0) => stop(d, 0).x
+    | Some(i) =>
+      let (before, after) = (stop(d, i - 1), stop(d, i))
+      let run = after.at -. before.at
+      run <= 0.0 ? after.x : before.x +. (after.x -. before.x) *. (at -. before.at) /. run
+    }
+
+  // a road that climbs and drops the whole height of the keyboard, twice, which
+  // is the worst a follower's following distance ever has to survive
+  let hilly = () =>
+    drive(
+      [
+        rowFrom(topLane, ~from=0.0, ~to_=90.0),
+        rowFrom(lowLane, ~from=140.0, ~to_=230.0),
+        rowFrom(topLane, ~from=280.0, ~to_=width),
+      ]->Belt.Array.concatMany,
+    )
+
+  test("leaves a car and its flag between one car and the next, hill or flat", t =>
+    [drive([]), hilly()]->Belt.Array.forEach(
+      d => {
+        let lag = VictoryRoad.convoyDelay(1) /. d.seconds *. 100.0
+        let closest = ref(infinity)
+        for i in 0 to 200 {
+          let at = Belt.Int.toFloat(i) /. 2.0
+          if at -. lag >= 0.0 {
+            let apart = xAt(d, at) -. xAt(d, at -. lag)
+            if apart < closest.contents {
+              closest := apart
+            }
+          }
+        }
+        t->expect(closest.contents >= VictoryRoad.convoyRoom)->Expect.toBeTruthy
+      },
+    )
+  )
+
+  test("sends out no more of the convoy than one lap of the road will hold", t =>
+    [drive([]), hilly()]->Belt.Array.forEach(
+      d => {
+        let fits = VictoryRoad.convoyFits(d)
+        t->expect(fits >= 1)->Expect.toBeTruthy
+        // the last car is a whole gap short of lapping onto the leader
+        t
+        ->expect(Belt.Int.toFloat(fits) *. VictoryRoad.convoyGap <= d.seconds *. VictoryRoad.speed)
+        ->Expect.toBeTruthy
+      },
+    )
+  )
+})
+
 describe("VictoryRoad css", () => {
   test("writes the route out as one point per waypoint", t => {
     let d = drive([])

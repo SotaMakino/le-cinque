@@ -170,7 +170,7 @@ let paints = [
   {name: "amaranto", body: "#c25f74", hub: "#ffe7ee"},
 ]
 
-// What the tricolore says. All of them cheer the round rather than the player,
+// What the tricolores say. All of them cheer the round rather than the player,
 // so none has to guess who it is talking to.
 let messages = [
   "Congratulazioni!",
@@ -205,3 +205,20 @@ let anyOf = items =>
   items->Belt.Array.getUnsafe(
     Js.Math.floor_int(Js.Math.random() *. Belt.Int.toFloat(items->Belt.Array.length)),
   )
+
+// n of them, no two the same, drawn the way a hand is dealt: every car in the
+// convoy flies its own flag, and two flags cheering with the same word would
+// read as a mistake rather than a chorus. Asking for more than the hat holds
+// gets the whole hat, shuffled.
+let anyFew = (items, n) => {
+  let hat = items->Belt.Array.copy
+  let dealt = Js.Math.min_int(n, hat->Belt.Array.length)
+  for i in 0 to dealt - 1 {
+    let left = hat->Belt.Array.length - i
+    let j = i + Js.Math.floor_int(Js.Math.random() *. Belt.Int.toFloat(left))
+    let drawn = hat->Belt.Array.getUnsafe(j)
+    hat->Belt.Array.setUnsafe(j, hat->Belt.Array.getUnsafe(i))
+    hat->Belt.Array.setUnsafe(i, drawn)
+  }
+  hat->Belt.Array.slice(~offset=0, ~len=dealt)
+}

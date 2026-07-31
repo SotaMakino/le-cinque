@@ -91,6 +91,33 @@ describe("VictoryCar.messages", () => {
   )
 })
 
+describe("VictoryCar.anyFew", () => {
+  test("deals as many as asked for, all different and all from the hat", t =>
+    Belt.Range.forEach(
+      1,
+      60,
+      _ => {
+        let few = VictoryCar.anyFew(VictoryCar.messages, WinStreak.longest)
+        t->expect(few->Belt.Array.length)->Expect.toBe(WinStreak.longest)
+        t
+        ->expect(Belt.Set.String.fromArray(few)->Belt.Set.String.size)
+        ->Expect.toBe(WinStreak.longest)
+        t
+        ->expect(few->Belt.Array.every(m => VictoryCar.messages->Belt.Array.some(x => x == m)))
+        ->Expect.toBeTruthy
+      },
+    )
+  )
+
+  test("hands back the whole hat when asked for more than it holds", t => {
+    let all = VictoryCar.anyFew(VictoryCar.messages, VictoryCar.messages->Belt.Array.length + 3)
+    t->expect(all->Belt.Array.length)->Expect.toBe(VictoryCar.messages->Belt.Array.length)
+    t
+    ->expect(Belt.Set.String.fromArray(all)->Belt.Set.String.size)
+    ->Expect.toBe(VictoryCar.messages->Belt.Array.length)
+  })
+})
+
 describe("VictoryCar.anyOf", () => {
   test("always draws something that was in the hat", t =>
     Belt.Range.forEach(

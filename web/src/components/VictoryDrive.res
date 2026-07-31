@@ -8,7 +8,7 @@
 // WinStreak — the browser's own count, which no server is told — puts one car on
 // the road per win, up to what the road holds. They all drive the one route,
 // each further back along it than the last, so the convoy takes the leader's
-// line through the same holes. The leader is the one towing the flag.
+// line through the same holes, and each of them tows a tricolore of its own.
 
 type drive = {
   width: float,
@@ -44,15 +44,18 @@ let make = () => {
   let root = React.useRef(Js.Nullable.null)
   let (drive, setDrive) = React.useState(() => None)
   // Dealt once, at the win: the lap keeps the convoy it was given for as long as
-  // the round stays won. One car per win in the streak, each with its own shape
-  // and its own coat of paint, so five in a row is five different cars.
-  let convoy = React.useMemo0(() =>
-    Belt.Array.makeBy(WinStreak.cars(WinStreak.current()), _ => (
+  // the round stays won. One car per win in the streak, each with its own shape,
+  // its own coat of paint and its own word on the flag it tows, so five in a row
+  // is five different cars cheering five different ways.
+  let convoy = React.useMemo0(() => {
+    let count = WinStreak.cars(WinStreak.current())
+    let messages = VictoryCar.anyFew(VictoryCar.messages, count)
+    Belt.Array.makeBy(count, i => (
       VictoryCar.anyOf(VictoryCar.cars),
       VictoryCar.anyOf(VictoryCar.paints),
+      messages->Belt.Array.getUnsafe(i),
     ))
-  )
-  let message = React.useMemo0(() => VictoryCar.anyOf(VictoryCar.messages))
+  })
 
   // the keyboard is the canvas: measure it, then every key that has left it
   let measure = () =>
@@ -114,7 +117,7 @@ let make = () => {
   // one lane per car: the same drive, started later the further back the car is,
   // and its own paint. The delay is what strings them out along the road; the
   // pixels beside it are where the car stands when the drive is held still.
-  let lane = (i, (car: VictoryCar.car, paint: VictoryCar.paint)) => {
+  let lane = (i, (car: VictoryCar.car, paint: VictoryCar.paint, message)) => {
     let (rear, front) = car.axles
     let laneStyle = Js.Dict.empty()
     laneStyle->Js.Dict.set("--car-body", paint.body)
@@ -122,8 +125,9 @@ let make = () => {
     laneStyle->Js.Dict.set("--car-delay", `${VictoryRoad.round(VictoryRoad.convoyDelay(i))}s`)
     laneStyle->Js.Dict.set("--car-back", `${VictoryRoad.round(VictoryRoad.convoyBack(i))}px`)
     <div key={i->Belt.Int.toString} className="victory-lane" style={laneStyle->Obj.magic}>
-      // the flag is the leader's to tow; the rest of the convoy follows it
-      {i == 0 ? <span className="cinque-banner"> {React.string(message)} </span> : React.null}
+      // every car tows a flag of its own, and the convoy is strung out far
+      // enough that none of them drives through the one in front
+      <span className="cinque-banner"> {React.string(message)} </span>
       <svg className="cinquecento" viewBox="-3 -3 109 51">
         <path className="cinque-body" d=car.body />
         <path className="cinque-glass" d=car.glass />
@@ -155,7 +159,13 @@ let make = () => {
             viewBox={`0 0 ${VictoryRoad.round(d.width)} ${VictoryRoad.round(d.height)}`}>
             <polyline points={VictoryRoad.polyline(d.road)} />
           </svg>
-          {convoy->Belt.Array.mapWithIndex(lane)->React.array}
+          // the streak deals the convoy, the road decides how much of it goes
+          // out: a narrow screen sends the first few cars and keeps the rest in
+          // the garage rather than lapping them onto the leader's flag
+          {convoy
+          ->Belt.Array.slice(~offset=0, ~len=VictoryRoad.convoyFits(d.road))
+          ->Belt.Array.mapWithIndex(lane)
+          ->React.array}
         </div>
       </>
     }}
