@@ -412,6 +412,17 @@
   }
 }
 
+/* The letter is on the tile but the server has not ruled on it yet: it sits
+   there in pale ink, as if not quite pressed into the paper. Whatever comes
+   back either sets it (revealed) or lifts it off (shake). */
+.tile.pending {
+  border-style: dashed;
+  border-color: var(--accent-border);
+  color: var(--text);
+  opacity: 0.55;
+  animation: tile-pop 0.28s ease-out;
+}
+
 /* a wrong drop shakes the slot and flashes it red */
 .tile.open.shake {
   animation: tile-shake 0.3s ease;
@@ -438,6 +449,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tile.revealed,
+  .tile.pending,
   .tile.open.shake {
     animation: none;
   }

@@ -5,7 +5,12 @@ let make = () => {
   let (game, setGame) = React.useState(() => None)
   let (error, setError) = React.useState(() => "")
   let (notice, setNotice) = React.useState(() => "") // rejected letter, transient
-  let (busy, setBusy) = React.useState(() => false)
+  // a guess and a new deal are both actions: each keeps its own pending flag,
+  // raised for as long as the request is in flight
+  let (placing, startPlacing) = ReactConcurrent.useTransition()
+  let (dealing, startDealing) = ReactConcurrent.useTransition()
+  // the letter waiting on a ruling, held only for the life of the guess action
+  let (pending, showPending) = ReactConcurrent.useOptimistic(None, (_, dropped) => Some(dropped))
   let (shake, setShake) = React.useState(() => None) // tile flashed on a wrong drop
   let (account, setAccount) = React.useState(() => None) // fetched player: guest or account
   let (menuOpen, setMenuOpen) = React.useState(() => false)
@@ -68,11 +73,15 @@ let make = () => {
   | None => false
   }
 
-  // place one letter on one exact tile
-  let placeLetter = async (letter, wordIndex, position) =>
+  // Place one letter on one exact tile. The tile takes the letter the moment it
+  // lands and the server rules on it afterwards: the guess runs as an action, so
+  // the letter sits there for exactly as long as the request does, and the render
+  // that clears it is the same one that shows the ruling.
+  let placeLetter = (letter, wordIndex, position) =>
     switch game {
-    | Some(g) if g.status == "playing" && !busy && letter != "" => {
-        setBusy(_ => true)
+    | Some(g) if g.status == "playing" && !placing && !dealing && letter != "" =>
+      startPlacing(async () => {
+        showPending({Game.letter, wordIndex, position})
         setNotice(_ => "")
         switch await GameApi.guess(~letter, ~word=wordIndex, ~position) {
         | Ok(updated) => {
@@ -99,23 +108,21 @@ let make = () => {
           setNotice(_ => err.message->Js.String2.replaceByRe(%re("/^HTTP \d+: /"), ""))
         | Error(err) => setError(_ => I18n.failedSubmit(uiLang, err.message))
         }
-        setBusy(_ => false)
-      }
+      })
     | _ => ()
     }
 
-  let startRound = async path => {
-    setBusy(_ => true)
-    setNotice(_ => "")
-    switch await GameApi.start(path) {
-    | Ok(fetched) => {
-        applyGame(fetched)
-        loadAccount()->ignore // a new round bumps the global play tally (N.)
+  let startRound = path =>
+    startDealing(async () => {
+      setNotice(_ => "")
+      switch await GameApi.start(path) {
+      | Ok(fetched) => {
+          applyGame(fetched)
+          loadAccount()->ignore // a new round bumps the global play tally (N.)
+        }
+      | Error(err) => setError(_ => I18n.failedStart(uiLang, err.message))
       }
-    | Error(err) => setError(_ => I18n.failedStart(uiLang, err.message))
-    }
-    setBusy(_ => false)
-  }
+    })
 
   let newGame = () => startRound("/game")
 
@@ -156,7 +163,7 @@ let make = () => {
     }
   let placeAtCursor = () =>
     switch activeTile {
-    | Some((wi, pos)) => placeLetter(selected, wi, pos)->ignore
+    | Some((wi, pos)) => placeLetter(selected, wi, pos)
     | None => ()
     }
   let handleKeyEvent = e => {
@@ -200,7 +207,7 @@ let make = () => {
       switch over.id->Js.String2.split("-") {
       | [ws, ps] =>
         switch (Belt.Int.fromString(ws), Belt.Int.fromString(ps)) {
-        | (Some(wi), Some(pos)) => placeLetter(e.active.id, wi, pos)->ignore
+        | (Some(wi), Some(pos)) => placeLetter(e.active.id, wi, pos)
         | _ => ()
         }
       | _ => ()
@@ -313,11 +320,12 @@ let make = () => {
           selected
           dragging
           shake
+          pending
           navMode
           activeTile
           authenticated
           lang=uiLang
-          onPlace={(letter, wi, pos) => placeLetter(letter, wi, pos)->ignore}
+          onPlace={(letter, wi, pos) => placeLetter(letter, wi, pos)}
         />
         // always rendered with reserved height, so guess feedback never shifts
         // the keyboard below it
@@ -330,7 +338,7 @@ let make = () => {
           status=g.status
           onSelect={letter => setSelected(s => s == letter ? "" : letter)}
         />
-        <Banner lang=uiLang status=g.status gameId=g.id busy onNewGame={() => newGame()->ignore} />
+        <Banner lang=uiLang status=g.status gameId=g.id busy=dealing onNewGame={() => newGame()} />
       </DndKit.DndContext>
       <footer className="app-footer">
         <p className="footer-links">

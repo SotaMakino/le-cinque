@@ -30,6 +30,10 @@ type game = {
   maxMisses: int, // wrong placements allowed before the round is lost
 }
 
+// a letter dropped on a tile the server has not ruled on yet: the board shows it
+// there while the guess is in flight
+type pending = {letter: string, wordIndex: int, position: int}
+
 // The rounds these types describe arrive as JSON and are read as records
 // unchecked, so a field the API does not send is not an empty one — it is
 // `undefined`, and the first thing to iterate it throws. The web app and the API

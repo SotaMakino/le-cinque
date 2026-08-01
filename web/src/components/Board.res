@@ -8,6 +8,7 @@ let make = (
   ~selected,
   ~dragging,
   ~shake,
+  ~pending: option<Game.pending>,
   ~navMode,
   ~activeTile,
   ~authenticated,
@@ -35,27 +36,34 @@ let make = (
         <div className="english-tiles">
           {p.tiles
           ->Belt.Array.mapWithIndex((i, letter) =>
-            letter == ""
-              ? {
-                  let armed = selected != "" || dragging
-                  <DndKit.Droppable
-                    key={i->Belt.Int.toString}
-                    dropId={`${wi->Belt.Int.toString}-${i->Belt.Int.toString}`}
-                    className={"tile open" ++
-                    (armed ? " armed" : "") ++
-                    (shake == Some((wi, i)) ? " shake" : "") ++ (
-                      navMode && activeTile == Some((wi, i)) ? " tile-cursor" : ""
-                    )}
-                    armed
-                    onClick={_ => onPlace(selected, wi, i)}
-                  />
-                }
-              : <div
-                  key={i->Belt.Int.toString}
-                  className="tile revealed"
-                  style={{backgroundColor: Game.tileColor(p.gender)}}>
-                  {React.string(letter)}
-                </div>
+            switch (letter, pending) {
+            // the letter just dropped here, still waiting on the server: shown in
+            // place, in the paper's pale ink, and no longer a drop target
+            | ("", Some(dropped)) if dropped.wordIndex == wi && dropped.position == i =>
+              <div key={i->Belt.Int.toString} className="tile pending">
+                {React.string(dropped.letter)}
+              </div>
+            | ("", _) =>
+              let armed = selected != "" || dragging
+              <DndKit.Droppable
+                key={i->Belt.Int.toString}
+                dropId={`${wi->Belt.Int.toString}-${i->Belt.Int.toString}`}
+                className={"tile open" ++
+                (armed ? " armed" : "") ++
+                (shake == Some((wi, i)) ? " shake" : "") ++ (
+                  navMode && activeTile == Some((wi, i)) ? " tile-cursor" : ""
+                )}
+                armed
+                onClick={_ => onPlace(selected, wi, i)}
+              />
+            | _ =>
+              <div
+                key={i->Belt.Int.toString}
+                className="tile revealed"
+                style={{backgroundColor: Game.tileColor(p.gender)}}>
+                {React.string(letter)}
+              </div>
+            }
           )
           ->React.array}
         </div>
