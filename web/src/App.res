@@ -11,7 +11,9 @@ let make = () => {
   let (dealing, startDealing) = ReactConcurrent.useTransition()
   // the letter waiting on a ruling, held only for the life of the guess action
   let (pending, showPending) = ReactConcurrent.useOptimistic(None, (_, dropped) => Some(dropped))
-  let (shake, setShake) = React.useState(() => None) // tile flashed on a wrong drop
+  // the rejected letter, kept on its tile through the shake so it is clear which
+  // letter was turned down and where
+  let (shake, setShake) = React.useState((): option<Game.pending> => None)
   let (account, setAccount) = React.useState(() => None) // fetched player: guest or account
   let (menuOpen, setMenuOpen) = React.useState(() => false)
   let (showAuth, setShowAuth) = React.useState(() => false) // sign-in overlay
@@ -95,7 +97,7 @@ let make = () => {
               let shown = letter->Js.String2.toLowerCase
               setNotice(_ => I18n.notice(uiLang, shown, left))
               // shake the missed slot, then clear it so it can fire again
-              setShake(_ => Some((wordIndex, position)))
+              setShake(_ => Some({Game.letter, wordIndex, position}))
               let _ = Js.Global.setTimeout(() => setShake(_ => None), 450)
             }
             if updated.status == "won" {

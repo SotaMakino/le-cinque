@@ -38,11 +38,12 @@ export function Draggable({ letter, label, className, disabled, dragDisabled, on
 }
 
 // An open tile that accepts a dropped letter. `armed` means a letter is in hand,
-// so gate the hover highlight on it to match the tap-to-place styling.
-export function Droppable({ dropId, className, armed, onClick }) {
+// so gate the hover highlight on it to match the tap-to-place styling. It takes
+// children so a rejected letter can sit in the tile while it shakes.
+export function Droppable({ dropId, className, armed, onClick, children }) {
   const { setNodeRef, isOver } = useDroppable({ id: dropId });
   const cls = className + (isOver && armed ? " drop-hover" : "");
-  return React.createElement("div", { ref: setNodeRef, className: cls, onClick });
+  return React.createElement("div", { ref: setNodeRef, className: cls, onClick }, children);
 }
 
 // A small activation distance lets a plain tap fire onClick instead of a drag,

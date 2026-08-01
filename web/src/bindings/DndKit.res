@@ -40,5 +40,6 @@ module Droppable = {
     ~className: string,
     ~armed: bool,
     ~onClick: ReactEvent.Mouse.t => unit=?,
+    ~children: React.element=?,
   ) => React.element = "Droppable"
 }

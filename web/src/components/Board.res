@@ -7,7 +7,7 @@ let make = (
   ~direction,
   ~selected,
   ~dragging,
-  ~shake,
+  ~shake: option<Game.pending>,
   ~pending: option<Game.pending>,
   ~navMode,
   ~activeTile,
@@ -45,17 +45,27 @@ let make = (
               </div>
             | ("", _) =>
               let armed = selected != "" || dragging
+              // the letter the server has just turned down rides out the shake in
+              // its tile, then fades, so it is plain which one was refused
+              let rejected = switch shake {
+              | Some(r) if r.wordIndex == wi && r.position == i => Some(r.letter)
+              | _ => None
+              }
               <DndKit.Droppable
                 key={i->Belt.Int.toString}
                 dropId={`${wi->Belt.Int.toString}-${i->Belt.Int.toString}`}
                 className={"tile open" ++
                 (armed ? " armed" : "") ++
-                (shake == Some((wi, i)) ? " shake" : "") ++ (
+                (rejected == None ? "" : " shake") ++ (
                   navMode && activeTile == Some((wi, i)) ? " tile-cursor" : ""
                 )}
                 armed
-                onClick={_ => onPlace(selected, wi, i)}
-              />
+                onClick={_ => onPlace(selected, wi, i)}>
+                {switch rejected {
+                | Some(l) => <span className="tile-rejected"> {React.string(l)} </span>
+                | None => React.null
+                }}
+              </DndKit.Droppable>
             | _ =>
               <div
                 key={i->Belt.Int.toString}

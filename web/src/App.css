@@ -431,6 +431,23 @@
   background: rgba(205, 33, 42, 0.12);
 }
 
+/* the refused letter stays put through the shake and then fades out, so the
+   tile empties as a consequence of the shake rather than beside it */
+.tile-rejected {
+  color: #cd212a;
+  animation: letter-refused 0.45s ease-out forwards;
+}
+
+@keyframes letter-refused {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 @keyframes tile-shake {
   20%,
   80% {
@@ -452,6 +469,11 @@
   .tile.pending,
   .tile.open.shake {
     animation: none;
+  }
+
+  /* no shake to ride out, so the letter just holds its place and goes */
+  .tile-rejected {
+    animation: letter-refused 0.45s step-end forwards;
   }
 }
 
