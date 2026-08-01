@@ -7,6 +7,22 @@ external toLocaleDate: (
   {"day": string, "month": string, "year": string, "timeZone": string},
 ) => string = "toLocaleDateString"
 
+// Fixed cut-offs flatten the calendar out as soon as one keen day dwarfs the
+// rest — 6, 10 and 40 words all landed on the darkest square. So the four
+// shades follow the quartiles of the days actually practised: the busiest day
+// is always darkest, and the quieter ones spread over the shades below it.
+let shades = (activity: array<int>) => {
+  let busy = activity->Belt.Array.keep(c => c > 0)->Belt.SortArray.stableSortBy((a, b) => a - b)
+  let n = Belt.Array.length(busy)
+  let quartile = q =>
+    switch Belt.Array.get(busy, n * q / 4) {
+    | Some(v) => v
+    | None => 1
+    }
+  let (q1, q2, q3) = (quartile(1), quartile(2), quartile(3))
+  c => c <= 0 ? "0" : c < q1 ? "1" : c < q2 ? "2" : c < q3 ? "3" : "4"
+}
+
 // the signed-in account popup: vocabulary count, progress bar, activity calendar,
 // and the log-out / delete actions. The parent owns the open/closed state and
 // mounts this only while the menu is open.
@@ -55,6 +71,7 @@ let make = (
             // dense daily counts starting on a Sunday: chunk into
             // week columns, one cell per weekday (Sun→Sat)
             let cols = (Belt.Array.length(activity) + 6) / 7
+            let shadeOf = shades(activity)
             let locale = lang == #it ? "it-IT" : "en-US"
             let startMs = Js.Date.fromString(activityStart ++ "T00:00:00Z")->Js.Date.getTime
             Belt.Array.makeBy(cols, col =>
@@ -63,7 +80,7 @@ let make = (
                   let i = col * 7 + row
                   switch Belt.Array.get(activity, i) {
                   | Some(c) =>
-                    let lvl = c <= 0 ? "0" : c <= 2 ? "1" : c <= 5 ? "2" : c <= 9 ? "3" : "4"
+                    let lvl = shadeOf(c)
                     // "3 words · 24 Jul 2026" — the day's tally and date
                     let date = Js.Date.fromFloat(startMs +. i->Belt.Int.toFloat *. 86400000.)
                     let dateStr = date->toLocaleDate(
