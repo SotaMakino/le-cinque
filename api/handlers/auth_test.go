@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"example.com/le-cinque/middleware"
 )
@@ -90,6 +91,18 @@ func TestLogin(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("expected 1 session in DB, got %d", count)
+	}
+
+	// a login lasts 30 days, and the cookie agrees with the DB row
+	if maxAge := cookies[0].MaxAge; maxAge != 30*86400 {
+		t.Errorf("expected session cookie MaxAge 2592000, got %d", maxAge)
+	}
+	var expires time.Time
+	if err := a.DB.QueryRow("SELECT expires_at FROM sessions WHERE username = $1", "ann").Scan(&expires); err != nil {
+		t.Fatal(err)
+	}
+	if left := time.Until(expires); left < 29*24*time.Hour || left > 31*24*time.Hour {
+		t.Errorf("expected expiry ~30 days out, got %v", left)
 	}
 }
 

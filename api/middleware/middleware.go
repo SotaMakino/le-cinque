@@ -39,30 +39,64 @@ func Authenticated(r *http.Request) bool {
 	return a
 }
 
+// SessionLifetime is how long a login lasts without activity, and how far a
+// sliding refresh extends it. Thirty days keeps regular players signed in
+// while idle accounts still expire; Login and the refresh below must both use
+// it so the DB row and the cookie never drift apart.
+const SessionLifetime = 30 * 24 * time.Hour
+
+// sessionRefreshThreshold bounds the extra write to one per week of activity:
+// only a session expiring within this window is extended, so ordinary game
+// traffic does not pay an UPDATE on every request.
+const sessionRefreshThreshold = 7 * 24 * time.Hour
+
 // sessionUser resolves a valid "session" cookie to its username. ok is false
 // when there is no cookie, no matching session, or the session has expired.
-func sessionUser(db *sql.DB, r *http.Request) (username string, ok bool) {
+func sessionUser(db *sql.DB, r *http.Request) (username, token string, expires time.Time, ok bool) {
 	cookie, err := r.Cookie("session")
 	if err != nil {
-		return "", false
+		return "", "", time.Time{}, false
 	}
-	var expires time.Time
 	err = db.QueryRow(
 		"SELECT username, expires_at FROM sessions WHERE token = $1",
 		cookie.Value).Scan(&username, &expires)
 	if err != nil || time.Now().After(expires) {
-		return "", false
+		return "", "", time.Time{}, false
 	}
-	return username, true
+	return username, cookie.Value, expires, true
+}
+
+// refreshSession extends a session expiring within the refresh window and
+// re-issues its cookie, so active players stay signed in. Failures are silent:
+// the current request is already authenticated, and the next one retries.
+func refreshSession(db *sql.DB, w http.ResponseWriter, token string, expires time.Time) {
+	if time.Until(expires) >= sessionRefreshThreshold {
+		return
+	}
+	newExpiry := time.Now().Add(SessionLifetime)
+	if _, err := db.Exec(
+		"UPDATE sessions SET expires_at = $1 WHERE token = $2", newExpiry, token); err != nil {
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   int(SessionLifetime.Seconds()),
+	})
 }
 
 func Auth(db *sql.DB, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		username, ok := sessionUser(db, r)
+		username, token, expires, ok := sessionUser(db, r)
 		if !ok {
 			unauthorized(w)
 			return
 		}
+		refreshSession(db, w, token, expires)
 		ctx := WithAuth(WithUser(r.Context(), username), true)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -75,7 +109,8 @@ func Auth(db *sql.DB, next http.Handler) http.Handler {
 func Player(db *sql.DB, next http.Handler) http.Handler {
 	guest := Guest(next)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if username, ok := sessionUser(db, r); ok {
+		if username, token, expires, ok := sessionUser(db, r); ok {
+			refreshSession(db, w, token, expires)
 			ctx := WithAuth(WithUser(r.Context(), username), true)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return

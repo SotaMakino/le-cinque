@@ -78,7 +78,7 @@ func TestAuth_ExpiredSession(t *testing.T) {
 func TestAuth_ValidSession(t *testing.T) {
 	db := setupDB(t)
 	if _, err := db.Exec("INSERT INTO sessions (token, username, expires_at) VALUES ($1, $2, $3)",
-		"valid-token", "ann", time.Now().Add(time.Hour)); err != nil {
+		"valid-token", "ann", time.Now().Add(29*24*time.Hour)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -86,5 +86,69 @@ func TestAuth_ValidSession(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Errorf("expected 200, got %d", rec.Code)
+	}
+}
+
+func TestAuth_RefreshesExpiringSession(t *testing.T) {
+	db := setupDB(t)
+	if _, err := db.Exec("INSERT INTO sessions (token, username, expires_at) VALUES ($1, $2, $3)",
+		"soon-token", "ann", time.Now().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := authRequest(db, &http.Cookie{Name: "session", Value: "soon-token"})
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	// the expiring session is extended and its cookie re-issued
+	var found bool
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == "session" && c.Value == "soon-token" {
+			found = true
+			if c.MaxAge != 30*86400 {
+				t.Errorf("expected refreshed cookie MaxAge 2592000, got %d", c.MaxAge)
+			}
+		}
+	}
+	if !found {
+		t.Error("expected a refreshed session cookie")
+	}
+	var expires time.Time
+	if err := db.QueryRow("SELECT expires_at FROM sessions WHERE token = $1",
+		"soon-token").Scan(&expires); err != nil {
+		t.Fatal(err)
+	}
+	if left := time.Until(expires); left < 29*24*time.Hour || left > 31*24*time.Hour {
+		t.Errorf("expected expiry pushed to ~30 days out, got %v", left)
+	}
+}
+
+func TestAuth_KeepsFreshSession(t *testing.T) {
+	db := setupDB(t)
+	fresh := time.Now().Add(29 * 24 * time.Hour)
+	if _, err := db.Exec("INSERT INTO sessions (token, username, expires_at) VALUES ($1, $2, $3)",
+		"fresh-token", "ann", fresh); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := authRequest(db, &http.Cookie{Name: "session", Value: "fresh-token"})
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	// plenty of life left: no rewrite, so game traffic avoids an UPDATE per request
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == "session" {
+			t.Errorf("expected no refreshed cookie, got %v", c)
+		}
+	}
+	var expires time.Time
+	if err := db.QueryRow("SELECT expires_at FROM sessions WHERE token = $1",
+		"fresh-token").Scan(&expires); err != nil {
+		t.Fatal(err)
+	}
+	if expires.Sub(fresh) > time.Minute || fresh.Sub(expires) > time.Minute {
+		t.Errorf("expected expiry untouched, got %v (was %v)", expires, fresh)
 	}
 }

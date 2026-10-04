@@ -56,7 +56,7 @@ func (a *Auth) Login(w http.ResponseWriter, r *http.Request) {
 	token := hex.EncodeToString(b)
 
 	a.DB.Exec("INSERT INTO sessions (token, username, expires_at) VALUES ($1, $2, $3)",
-		token, c.Username, time.Now().Add(24*time.Hour))
+		token, c.Username, time.Now().Add(middleware.SessionLifetime))
 
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session",
@@ -65,7 +65,7 @@ func (a *Auth) Login(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true, // JS cannot read it — XSS protection
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode, // first-party: Pages proxies /api to this backend
-		MaxAge:   86400,
+		MaxAge:   int(middleware.SessionLifetime.Seconds()),
 	})
 	w.WriteHeader(http.StatusNoContent)
 }
