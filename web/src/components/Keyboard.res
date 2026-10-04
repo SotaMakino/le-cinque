@@ -1,15 +1,65 @@
+// The on-screen QWERTY keyboard. A letter can be tapped to select it or dragged
+// onto a tile; a letter with nowhere left to go leaves the keyboard. Winning
+// hands the emptied keyboard over to the victory lap, which drives the gaps.
+//
+// On narrow containers (tiny phones such as the 3" Unihertz Jelly Star, ~240px
+// CSS wide) the on-screen rows are hidden by container queries and this same
+// component offers the device keyboard instead: a native input that summons
+// the OS keyboard. Typing a letter arms it exactly like tapping a key, and the
+// player drops it by tapping a tile.
 let keyboardRows = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
   ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
   ["Z", "X", "C", "V", "B", "N", "M"],
 ]
 
-// The on-screen QWERTY keyboard. A letter can be tapped to select it or dragged
-// onto a tile; a letter with nowhere left to go leaves the keyboard. Winning
-// hands the emptied keyboard over to the victory lap, which drives the gaps.
 @react.component
-let make = (~usedUp, ~absent, ~selected, ~status, ~onSelect) =>
+let make = (~usedUp, ~absent, ~selected, ~status, ~lang, ~onSelect) => {
+  let tr = I18n.strings(lang)
+  // the native input never holds text: every keystroke is forwarded to the
+  // board and the field is cleared, so the OS keyboard stays open for the next
+  // letter while the field itself never fills up
+  let (draft, setDraft) = React.useState(() => "")
+  let playing = status == "playing"
+  let onDraftChange = v => {
+    let len = v->Js.String2.length
+    if len > 0 {
+      let last = v->Js.String2.slice(~from=len - 1, ~to_=len)
+      if %re("/^[a-z]$/i")->Js.Re.test_(last) {
+        onSelect(last->Js.String2.toUpperCase)
+      }
+    }
+    // always clear: the letter lives on the tile cursor / selection, not here
+    setDraft(_ => "")
+  }
   <div className="keyboard">
+    <div className="native-type">
+      <label className="native-label" htmlFor="native-letter">
+        {React.string(selected != "" ? selected ++ " · " ++ tr.tapTile : tr.typeLetter)}
+      </label>
+      <div className="native-row">
+        <input
+          id="native-letter"
+          className="native-input"
+          value=draft
+          placeholder={tr.typeLetter}
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck=false
+          maxLength=2
+          disabled={!playing}
+          onChange={e => {
+            let value = ReactEvent.Form.target(e)["value"]
+            onDraftChange(value)
+          }}
+        />
+        {selected != ""
+          ? <button type_="button" className="ghost native-clear" onClick={_ => onSelect(selected)}>
+              {React.string(`× ${tr.clearPicked}`)}
+            </button>
+          : React.null}
+      </div>
+    </div>
     {keyboardRows
     ->Belt.Array.mapWithIndex((ri, row) =>
       <div key={ri->Belt.Int.toString} className="kb-row">
@@ -42,3 +92,4 @@ let make = (~usedUp, ~absent, ~selected, ~status, ~onSelect) =>
     ->React.array}
     {status == "won" ? <VictoryDrive /> : React.null}
   </div>
+}

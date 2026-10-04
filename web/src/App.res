@@ -338,6 +338,7 @@ let make = () => {
           absent=g.absent
           selected
           status=g.status
+          lang=uiLang
           onSelect={letter => setSelected(s => s == letter ? "" : letter)}
         />
         <Banner lang=uiLang status=g.status gameId=g.id busy=dealing onNewGame={() => newGame()} />

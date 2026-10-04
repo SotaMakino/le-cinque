@@ -41,6 +41,9 @@ type t = {
   agreePre: string,
   agreeAnd: string,
   privacyPolicy: string,
+  typeLetter: string, // placeholder for the native device-keyboard input
+  tapTile: string, // hint shown beside it ("then tap a tile")
+  clearPicked: string, // clears the picked letter
 }
 
 let it: t = {
@@ -101,6 +104,9 @@ let it: t = {
   agreePre: "Creando un account, accetti i nostri ",
   agreeAnd: " e l'",
   privacyPolicy: "Informativa sulla privacy",
+  typeLetter: "Digita una lettera…",
+  tapTile: "poi tocca una casella",
+  clearPicked: "Annulla",
 }
 
 let en: t = {
@@ -161,6 +167,9 @@ let en: t = {
   agreePre: "By creating an account, you agree to our ",
   agreeAnd: " and ",
   privacyPolicy: "Privacy Policy",
+  typeLetter: "Type a letter…",
+  tapTile: "then tap a tile",
+  clearPicked: "Clear",
 }
 
 let strings = lang => lang == #it ? it : en

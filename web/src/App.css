@@ -10,6 +10,30 @@
   flex: 1 0 auto;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  overflow-x: clip;
+  /* Component container: the board, the keyboard and the masthead below
+     resolve their responsive rules against this box — not the viewport —
+     so the layout also adapts in a sidebar, an iframe, or a 3" phone.
+     (.app's own box rules query the `page` container on #root instead,
+     because a container can never query itself.) */
+  container-type: inline-size;
+  container-name: app;
+}
+
+/* The page gutter belongs to the viewport-level box: shrink it as the page
+   container narrows (Jelly Star is ~240px CSS wide). */
+@container page (max-width: 380px) {
+  .app {
+    padding: 0 0.5rem;
+  }
+}
+
+@container page (max-width: 320px) {
+  .app {
+    padding: 0 0.35rem;
+    margin-top: 0.15rem;
+  }
 }
 
 /* --- La Gazzetta print masthead --- */
@@ -68,7 +92,11 @@
   letter-spacing: 0.5px;
 }
 
-@media (max-width: 560px) {
+/* Container-query breakpoints (all against the `app` box, whose width tops
+   out at 640px): 560px phones, 380px compact phones, 320px ultra-narrow
+   (Jelly Star class, ~240px CSS). The PC design above stays the default. */
+
+@container app (max-width: 560px) {
   .app-header h1 {
     font-size: 56px;
   }
@@ -80,7 +108,7 @@
   }
 }
 
-@media (max-width: 380px) {
+@container app (max-width: 380px) {
   .app-header h1 {
     font-size: 40px;
   }
@@ -96,9 +124,25 @@
   }
 }
 
-@media (max-width: 300px) {
+@container app (max-width: 320px) {
+  .app-header {
+    margin-bottom: 0.6rem;
+    padding-bottom: 0.25rem;
+  }
+
   .app-header h1 {
-    font-size: 32px;
+    font-size: 30px;
+    word-spacing: -0.5rem;
+    margin: -0.2rem 0 0.05rem;
+  }
+
+  .flag-row {
+    gap: 0.35rem;
+  }
+
+  .glyph-flag {
+    width: 26px;
+    height: 19px;
   }
 
   .dateline {
@@ -510,9 +554,11 @@
   }
 }
 
-/* roomy screens: the play column is capped at 640px, so scale the pairs up to
-   fill it instead of floating small in the middle */
-@media (min-width: 768px) {
+/* roomy containers: the play column is capped at 640px, so scale the pairs
+   up to fill it instead of floating small in the middle. (The old viewport
+   rule was min-width 768px; the app box maxes at 640px, so 600px here is
+   the same roomy PC layout in container terms.) */
+@container app (min-width: 600px) {
   .pairs {
     column-gap: 1.5rem;
     row-gap: 12px;
@@ -539,7 +585,7 @@
   }
 }
 
-@media (max-width: 560px) {
+@container app (max-width: 560px) {
   /* bound the tiles column to the leftover width so a long word wraps into a
      second tier instead of overflowing the screen */
   .pairs {
@@ -565,15 +611,12 @@
   }
 }
 
-/* tiny phones (e.g. Unihertz Jelly 2, ~240px CSS-wide 3" screen): trim the
-   gutters and let the 10-key top row shrink so it never overflows */
-@media (max-width: 380px) {
-  .app {
-    padding: 0 0.5rem;
-  }
-
+/* compact phones: trim the gutters between the prompt and its tiles */
+@container app (max-width: 380px) {
   .pairs {
     column-gap: 0.5rem;
+    row-gap: 8px;
+    margin-top: 1rem;
   }
 
   .tile {
@@ -583,19 +626,16 @@
   }
 }
 
-/* on a ~240px screen even a 9-letter word plus its label won't fit side by
-   side without shrinking the tiles too far, so stack the word over its tiles
-   and give the row the full width */
-@media (max-width: 300px) {
-  .app {
-    padding: 0 0.35rem;
-  }
-
+/* ultra-narrow (Jelly Star, ~240px CSS): even a 9-letter word plus its label
+   won't fit side by side without shrinking the tiles too far, so stack the
+   word over its tiles and give the row the full width */
+@container app (max-width: 320px) {
   .pairs {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 14px;
+    align-items: stretch;
+    gap: 12px;
+    margin-top: 0.75rem;
   }
 
   .pair-row {
@@ -613,14 +653,26 @@
   }
 
   .english-tiles {
-    justify-self: auto;
+    justify-content: center;
+    flex-wrap: wrap;
     gap: 3px;
   }
 
   .tile {
-    width: 22px;
-    height: 22px;
-    font-size: 12px;
+    /* 24px stays tappable; long words wrap to a centred second tier */
+    width: 24px;
+    height: 28px;
+    font-size: 13px;
+    border-width: 1.5px;
+  }
+
+  .tries {
+    gap: 0.35rem;
+  }
+
+  .notice {
+    font-size: 13px;
+    margin: 0.9rem 0 0.5rem;
   }
 }
 
@@ -694,12 +746,69 @@
   z-index: 1;
 }
 
-/* tiny phones (e.g. Unihertz Jelly 2, ~240px CSS-wide 3" screen): let the
-   10-key top row shrink to fit instead of overflowing the viewport */
-@media (max-width: 380px) {
+/* --- Device keyboard takeover (narrow containers only) ---
+   The native input summons the OS keyboard on tiny phones. It stays in the
+   DOM on PC too (so the swap is pure CSS) but is hidden there. */
+.native-type {
+  display: none;
+}
+
+.native-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--text);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.native-row {
+  display: flex;
+  gap: 0.4rem;
+  align-items: stretch;
+}
+
+.native-input {
+  flex: 1;
+  min-width: 0;
+  /* 16px+ so iOS never zoom-to-focus, which would hide the tiles */
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+.native-clear {
+  flex-shrink: 0;
+  padding: 0.45rem 0.6rem;
+  white-space: nowrap;
+}
+
+/* compact phones and below: a 10-key on-screen row would give each key ~20px
+   on a 240px screen — too small to tap — so hide the rows and hand typing
+   to the device keyboard instead */
+@container app (max-width: 380px) {
   .keyboard {
     gap: 4px;
     margin-top: 1rem;
+  }
+
+  .kb-row {
+    display: none;
+  }
+
+  .native-type {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+}
+
+/* mid-size phones keep a slimmed on-screen keyboard (no takeover) */
+@container app (min-width: 381px) and (max-width: 560px) {
+  .keyboard {
+    gap: 5px;
   }
 
   .kb-row {
@@ -709,19 +818,7 @@
   .key {
     flex: 1 1 0;
     min-width: 0;
-    height: 42px;
-    font-size: 13px;
-  }
-}
-
-@media (max-width: 300px) {
-  .kb-row {
-    gap: 2px;
-  }
-
-  .key {
-    height: 38px;
-    font-size: 12px;
+    height: 44px;
   }
 }
 
@@ -946,8 +1043,8 @@
   }
 }
 
-/* the keys shrink on a small phone; the car keeps them company */
-@media (max-width: 380px) {
+/* the keyboard shrinks on a compact container; the car keeps it company */
+@container app (max-width: 560px) {
   .cinquecento {
     scale: 0.85;
   }
@@ -955,6 +1052,20 @@
   .cinque-banner {
     font-size: 11px;
     padding: 2px 10px;
+  }
+}
+
+/* ultra-narrow: the road is the native-input bar now, so park a smaller car
+   with a shorter flag that never overflows the 240px box */
+@container app (max-width: 320px) {
+  .cinquecento {
+    scale: 0.7;
+  }
+
+  .cinque-banner {
+    font-size: 10px;
+    padding: 2px 8px;
+    right: 36px;
   }
 }
 
@@ -1462,4 +1573,90 @@
 
 .app-footer .footer-copy {
   color: rgba(58, 43, 40, 0.82); /* match the footer links */
+}
+
+/* --- Narrow containers: banner, dialogs, footer (Jelly Star fit) --- */
+
+@container app (max-width: 380px) {
+  .banner {
+    bottom: 0.75rem;
+    width: calc(100% - 1rem);
+    padding: 0.75rem 0.9rem;
+    gap: 0.6rem;
+  }
+
+  .auth-modal {
+    padding: 1.25rem 1rem 1.5rem;
+  }
+
+  .account-menu {
+    min-width: 12rem;
+    padding: 0.9rem 0.8rem 1rem;
+  }
+}
+
+@container app (max-width: 320px) {
+  .banner p {
+    font-size: 14px;
+  }
+
+  .banner p.saying {
+    font-size: 0.8rem;
+  }
+
+  .app-footer {
+    font-size: 9px;
+    padding-top: 0.75rem;
+  }
+
+  .app-footer .footer-sep {
+    margin: 0 4px;
+  }
+
+  /* the popup drops from the dateline name: keep it on-screen at 240px */
+  .account-menu {
+    position: fixed;
+    top: 3.2rem;
+    right: 0.35rem;
+    left: 0.35rem;
+    min-width: 0;
+  }
+
+  .auth-overlay {
+    padding: 0.5rem;
+    align-items: flex-start;
+    padding-top: 8vh;
+  }
+}
+
+/* Browsers without container-query support fall back to the viewport rules
+   that matter most: stacked pairs and a hidden on-screen keyboard. */
+@supports not (container-type: inline-size) {
+  @media (max-width: 380px) {
+    .kb-row {
+      display: none;
+    }
+
+    .native-type {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+  }
+
+  @media (max-width: 320px) {
+    .pairs {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pair-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+  }
 }

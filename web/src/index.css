@@ -86,6 +86,11 @@ body {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  /* Page-level container for container queries: every responsive rule below
+     the page resolves against this box — not the viewport — so the layout
+     also adapts in a sidebar, an iframe, or a tiny 240px-CSS phone screen. */
+  container-type: inline-size;
+  container-name: page;
 }
 
 h1,
