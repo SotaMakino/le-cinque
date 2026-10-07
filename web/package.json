@@ -9,7 +9,8 @@
     "res:watch": "rescript build -w",
     "build": "rescript && bunx --bun vite build",
     "test": "rescript && bunx --bun vitest run",
-    "lint": "rescript format -check -all && rescript clean && rescript build",
+    "lint": "bun run guard:xss && rescript format -check -all && rescript clean && rescript build",
+    "guard:xss": "grep -rn -E 'dangerouslySetInnerHTML|\\.innerHTML' src --include='*.res' --include='*.jsx' --include='*.js' | grep -v 'VictoryDrive\\.res' && exit 1 || exit 0",
     "preview": "bunx --bun vite preview",
     "format": "rescript format -all"
   },

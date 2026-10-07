@@ -23,7 +23,6 @@ type game = {
   direction: string, // "it" = spell the English word; "en" = spell the Italian one
   pairs: array<pair>,
   guessed: array<string>,
-  results: array<bool>, // parallel to guessed: true = correct placement
   wrong: array<string>,
   usedUp: array<string>, // letters whose every occurrence is on the board
   absent: array<string>, // letters tried that spell none of the round's words

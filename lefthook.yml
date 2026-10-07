@@ -1,7 +1,7 @@
-# Pre-commit mirrors the web CI job: lint (format check + rescript build),
-# unit tests, then the production build. Scoped to web/ so they only run when
-# web files are staged, and kept sequential to avoid ReScript build-lock
-# contention between the steps.
+# Pre-commit mirrors the web CI job: lint (XSS-sink guard + format check +
+# rescript build), unit tests, then the production build. Scoped to web/ so
+# they only run when web files are staged, and kept sequential to avoid
+# ReScript build-lock contention between the steps.
 pre-commit:
   commands:
     lint:
