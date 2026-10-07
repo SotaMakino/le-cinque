@@ -43,6 +43,7 @@ type t = {
   privacyPolicy: string,
   typeLetter: string, // placeholder for the native device-keyboard input
   tapTile: string, // hint shown beside it ("then tap a tile")
+  pickTile: string, // narrow-first step: tap an empty tile before typing
   clearPicked: string, // clears the picked letter
 }
 
@@ -106,6 +107,7 @@ let it: t = {
   privacyPolicy: "Informativa sulla privacy",
   typeLetter: "Digita una lettera…",
   tapTile: "poi tocca una casella",
+  pickTile: "Tocca una casella, poi digita",
   clearPicked: "Annulla",
 }
 
@@ -169,6 +171,7 @@ let en: t = {
   privacyPolicy: "Privacy Policy",
   typeLetter: "Type a letter…",
   tapTile: "then tap a tile",
+  pickTile: "Tap an empty tile, then type",
   clearPicked: "Clear",
 }
 
@@ -176,6 +179,14 @@ let strings = lang => lang == #it ? it : en
 
 // dynamic strings that fold in a value
 let pronounce = (lang, word) => lang == #it ? `Pronuncia ${word}` : `Pronounce ${word}`
+
+// narrow slot-first step two: a tile is already picked, so name it and ask for
+// the letter. wi and pos are 0-based; words and tiles are shown 1-based.
+let pickedHint = (lang, wi, pos) => {
+  let w = (wi + 1)->Belt.Int.toString
+  let t = (pos + 1)->Belt.Int.toString
+  lang == #it ? `Parola ${w} · casella ${t} — digita!` : `Word ${w} · tile ${t} — type!`
+}
 
 let notice = (lang, letter, left) =>
   if lang == #it {

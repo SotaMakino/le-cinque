@@ -21,6 +21,9 @@ let make = () => {
   let (selected, setSelected) = React.useState(() => "") // letter picked from the keyboard
   let (tileCursor, setTileCursor) = React.useState((): option<(int, int)> => None) // arrow-key cursor
   let (navMode, setNavMode) = React.useState(() => false) // true while navigating tiles by arrow keys
+  // narrow slot-first pick: the empty tile the next typed letter lands on.
+  // Independent of the arrow-key cursor above, so the two flows never fight.
+  let (pickedTile, setPickedTile) = React.useState((): option<(int, int)> => None)
   let (dragging, setDragging) = React.useState(() => false)
   let sensors = DndKit.useDefaultSensors()
   let tr = I18n.strings(uiLang) // localized UI strings
@@ -40,6 +43,8 @@ let make = () => {
     WinStreak.record(~gameId=g.id, ~status=g.status)
     setGame(_ => Some(g))
     setUiLang(_ => g.direction == "en" ? #en : #it)
+    // tile coordinates belong to the old round's board, so never carry over
+    setPickedTile(_ => None)
   }
 
   let loadGame = async () => {
@@ -75,6 +80,15 @@ let make = () => {
   | None => false
   }
 
+  // the next empty tile after a correct narrow placement: further along the
+  // same word when one is still open there, otherwise the first open tile of
+  // the round (which also clears the pick once nothing is open anymore)
+  let nextOpenAfter = (pairs: array<Game.pair>, wi, pos) =>
+    switch TileNav.openInRow(pairs, wi)->Belt.Array.keep(p => p > pos)->Belt.Array.get(0) {
+    | Some(np) => Some((wi, np))
+    | None => TileNav.firstOpenTile(pairs)
+    }
+
   // Place one letter on one exact tile. The tile takes the letter the moment it
   // lands and the server rules on it afterwards: the guess runs as an action, so
   // the letter sits there for exactly as long as the request does, and the render
@@ -82,6 +96,9 @@ let make = () => {
   let placeLetter = (letter, wordIndex, position) =>
     switch game {
     | Some(g) if g.status == "playing" && !placing && !dealing && letter != "" =>
+      // a slot-first pick only ever drives the tile it sits on; a letter-first
+      // drop leaves the pick alone (there is none)
+      let hadPick = pickedTile == Some((wordIndex, position))
       startPlacing(async () => {
         showPending({Game.letter, wordIndex, position})
         setNotice(_ => "")
@@ -96,9 +113,15 @@ let make = () => {
               let left = updated.maxMisses - updated.wrong->Belt.Array.length
               let shown = letter->Js.String2.toLowerCase
               setNotice(_ => I18n.notice(uiLang, shown, left))
-              // shake the missed slot, then clear it so it can fire again
+              // shake the missed slot, then clear it so it can fire again.
+              // The pick stays put: the slot is still empty, so retrying it
+              // with another letter is the likeliest next move.
               setShake(_ => Some({Game.letter, wordIndex, position}))
               let _ = Js.Global.setTimeout(() => setShake(_ => None), 450)
+            } else if hadPick {
+              // correct (or at least not a miss): walk the pick on so the next
+              // typed letter lands on the following empty tile without tapping
+              setPickedTile(_ => nextOpenAfter(updated.pairs, wordIndex, position))
             }
             if updated.status == "won" {
               loadAccount()->ignore // refresh the tally for the account menu
@@ -113,6 +136,14 @@ let make = () => {
       })
     | _ => ()
     }
+
+  // tapping an empty tile with no letter in hand picks it for the narrow
+  // slot-first flow; tapping it again gives it back. Focusing the native
+  // input summons the OS keyboard straight onto the chosen slot.
+  let pickTile = (wi, pos) => {
+    setPickedTile(cur => cur == Some((wi, pos)) ? None : Some((wi, pos)))
+    DomBindings.focusNativeInput()
+  }
 
   let startRound = path =>
     startDealing(async () => {
@@ -136,15 +167,27 @@ let make = () => {
     | Error(_) => ()
     }
 
-  // a physical key press picks the letter up; clicking a tile drops it
+  // a physical key press picks the letter up — unless a narrow tile is already
+  // picked, in which case the letter drops straight onto it (slot-first)
   let handleKey = k =>
     if k->Js.String2.length == 1 && %re("/^[a-z]$/i")->Js.Re.test_(k) {
       let letter = k->Js.String2.toUpperCase
       switch game {
       | Some(g) if g.status == "playing" && !Game.isSpent(g, letter) =>
-        setSelected(s => s == letter ? "" : letter)
+        switch pickedTile {
+        | Some((wi, pos)) => placeLetter(letter, wi, pos)
+        | None => setSelected(s => s == letter ? "" : letter)
+        }
       | _ => ()
       }
+    }
+
+  // an on-screen key (or a narrow typed letter) drops straight onto the picked
+  // tile when there is one, and otherwise picks the letter up as before
+  let selectOrPlace = letter =>
+    switch pickedTile {
+    | Some((wi, pos)) if letter != "" => placeLetter(letter, wi, pos)
+    | _ => setSelected(s => s == letter ? "" : letter)
     }
 
   // keyboard-only placement: the arrow keys walk a cursor across the open tiles
@@ -246,11 +289,14 @@ let make = () => {
         | Some(key) => key->DomBindings.blur
         | None => ()
         }
-        // an open tile keeps the letter (its click places it); anywhere else
-        // clears the selection so nothing stays highlighted
+        // an open tile keeps the letter (its click places it) and keeps the
+        // narrow pick (its click moves it); anywhere else clears both so
+        // nothing stays highlighted
         switch e->DomBindings.pointerTarget->DomBindings.closest(".tile.open") {
         | Some(_) => ()
-        | None => setSelected(_ => "")
+        | None =>
+          setSelected(_ => "")
+          setPickedTile(_ => None)
         }
       }
     }
@@ -325,9 +371,11 @@ let make = () => {
           pending
           navMode
           activeTile
+          pickedTile
           authenticated
           lang=uiLang
           onPlace={(letter, wi, pos) => placeLetter(letter, wi, pos)}
+          onPick={(wi, pos) => pickTile(wi, pos)}
         />
         // always rendered with reserved height, so guess feedback never shifts
         // the keyboard below it
@@ -339,7 +387,9 @@ let make = () => {
           selected
           status=g.status
           lang=uiLang
-          onSelect={letter => setSelected(s => s == letter ? "" : letter)}
+          pickedTile
+          onSelect={letter => selectOrPlace(letter)}
+          onClearPick={() => setPickedTile(_ => None)}
         />
         <Banner lang=uiLang status=g.status gameId=g.id busy=dealing onNewGame={() => newGame()} />
       </DndKit.DndContext>

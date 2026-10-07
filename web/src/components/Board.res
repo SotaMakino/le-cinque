@@ -1,6 +1,7 @@
 // The playing board: one row per pair, each with a speaker to pronounce it, the
 // prompt word, and the answer tiles. Empty tiles are drop targets that also
-// accept a tap; revealed tiles are tinted by the noun's gender.
+// accept a tap; revealed tiles are tinted by the noun's gender. A tap with no
+// letter in hand picks the tile (narrow slot-first flow) instead of placing.
 @react.component
 let make = (
   ~pairs: array<Game.pair>,
@@ -11,9 +12,11 @@ let make = (
   ~pending: option<Game.pending>,
   ~navMode,
   ~activeTile,
+  ~pickedTile: option<(int, int)>,
   ~authenticated,
   ~lang,
   ~onPlace,
+  ~onPick,
 ) => {
   // the speaker pronounces the prompt word in its own language: Italian when
   // spelling English, English when spelling Italian
@@ -51,16 +54,25 @@ let make = (
               | Some(r) if r.wordIndex == wi && r.position == i => Some(r.letter)
               | _ => None
               }
+              // narrow slot-first pick: the tapped tile, ringed like the
+              // arrow-key cursor so its meaning is already familiar
+              let picked = pickedTile == Some((wi, i))
               <DndKit.Droppable
                 key={i->Belt.Int.toString}
                 dropId={`${wi->Belt.Int.toString}-${i->Belt.Int.toString}`}
                 className={"tile open" ++
                 (armed ? " armed" : "") ++
-                (rejected == None ? "" : " shake") ++ (
-                  navMode && activeTile == Some((wi, i)) ? " tile-cursor" : ""
+                (rejected == None ? "" : " shake") ++
+                (navMode && activeTile == Some((wi, i)) ? " tile-cursor" : "") ++ (
+                  picked ? " tile-cursor" : ""
                 )}
                 armed
-                onClick={_ => onPlace(selected, wi, i)}>
+                onClick={_ =>
+                  if selected != "" {
+                    onPlace(selected, wi, i)
+                  } else {
+                    onPick(wi, i)
+                  }}>
                 {switch rejected {
                 | Some(l) => <span className="tile-rejected"> {React.string(l)} </span>
                 | None => React.null

@@ -5,8 +5,11 @@
 // On narrow containers (tiny phones such as the 3" Unihertz Jelly Star, ~240px
 // CSS wide) the on-screen rows are hidden by container queries and this same
 // component offers the device keyboard instead: a native input that summons
-// the OS keyboard. Typing a letter arms it exactly like tapping a key, and the
-// player drops it by tapping a tile.
+// the OS keyboard. The narrow flow is slot-first — tap an empty tile to pick
+// it (it gains the cursor ring), then type the letter, which lands there at
+// once and the pick advances to the next empty tile. Typing with no tile
+// picked still arms the letter exactly like tapping a key, and the player
+// drops it by tapping a tile.
 let keyboardRows = [
   ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
   ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
@@ -14,7 +17,16 @@ let keyboardRows = [
 ]
 
 @react.component
-let make = (~usedUp, ~absent, ~selected, ~status, ~lang, ~onSelect) => {
+let make = (
+  ~usedUp,
+  ~absent,
+  ~selected,
+  ~status,
+  ~lang,
+  ~pickedTile: option<(int, int)>,
+  ~onSelect,
+  ~onClearPick,
+) => {
   let tr = I18n.strings(lang)
   // the native input never holds text: every keystroke is forwarded to the
   // board and the field is cleared, so the OS keyboard stays open for the next
@@ -32,11 +44,20 @@ let make = (~usedUp, ~absent, ~selected, ~status, ~lang, ~onSelect) => {
     // always clear: the letter lives on the tile cursor / selection, not here
     setDraft(_ => "")
   }
+  // the narrow instruction line always names the next physical step, so the
+  // label never duplicates the input's own placeholder
+  let hint = if selected != "" {
+    selected ++ " · " ++ tr.tapTile
+  } else {
+    switch pickedTile {
+    | Some((wi, pos)) => I18n.pickedHint(lang, wi, pos)
+    | None => tr.pickTile
+    }
+  }
+  let hasClear = selected != "" || pickedTile != None
   <div className="keyboard">
-    <div className="native-type">
-      <label className="native-label" htmlFor="native-letter">
-        {React.string(selected != "" ? selected ++ " · " ++ tr.tapTile : tr.typeLetter)}
-      </label>
+    <div className={"native-type" ++ (pickedTile != None ? " has-pick" : "")}>
+      <label className="native-label" htmlFor="native-letter"> {React.string(hint)} </label>
       <div className="native-row">
         <input
           id="native-letter"
@@ -53,8 +74,16 @@ let make = (~usedUp, ~absent, ~selected, ~status, ~lang, ~onSelect) => {
             onDraftChange(value)
           }}
         />
-        {selected != ""
-          ? <button type_="button" className="ghost native-clear" onClick={_ => onSelect(selected)}>
+        {hasClear
+          ? <button
+              type_="button"
+              className="ghost native-clear"
+              onClick={_ =>
+                if selected != "" {
+                  onSelect(selected)
+                } else {
+                  onClearPick()
+                }}>
               {React.string(`× ${tr.clearPicked}`)}
             </button>
           : React.null}

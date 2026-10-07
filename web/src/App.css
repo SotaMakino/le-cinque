@@ -611,18 +611,42 @@
   }
 }
 
-/* compact phones: trim the gutters between the prompt and its tiles */
+/* compact phones: trim the gutters between the prompt and its tiles.
+   Tiles stay at least 30px so every slot remains an easy tap target, and each
+   row gains a number badge that the slot-first hint ("Word 2 · tile 3") points
+   at — the only orientation aid that fits in one line at 240px. */
 @container app (max-width: 380px) {
   .pairs {
     column-gap: 0.5rem;
-    row-gap: 8px;
+    row-gap: 10px;
     margin-top: 1rem;
+    counter-reset: parola;
+  }
+
+  .pair-row {
+    counter-increment: parola;
+  }
+
+  .italian::before {
+    content: counter(parola);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4em;
+    height: 1.4em;
+    box-sizing: border-box;
+    border: 1.5px solid var(--accent);
+    border-radius: 50%;
+    color: var(--accent);
+    font-size: 0.68em;
+    font-weight: 700;
+    letter-spacing: 0;
   }
 
   .tile {
-    width: 22px;
-    height: 22px;
-    font-size: 12px;
+    width: 30px;
+    height: 34px;
+    font-size: 15px;
   }
 }
 
@@ -659,10 +683,10 @@
   }
 
   .tile {
-    /* 24px stays tappable; long words wrap to a centred second tier */
-    width: 24px;
-    height: 28px;
-    font-size: 13px;
+    /* 32px stays tappable; long words wrap to a centred second tier */
+    width: 32px;
+    height: 38px;
+    font-size: 15px;
     border-width: 1.5px;
   }
 
@@ -787,7 +811,10 @@
 
 /* compact phones and below: a 10-key on-screen row would give each key ~20px
    on a 240px screen — too small to tap — so hide the rows and hand typing
-   to the device keyboard instead */
+   to the device keyboard instead. The input bar pins to the bottom of the
+   scroll (sticky, full-bleed) so the two narrow steps — 1. tap a tile,
+   2. type — stay visible while the word list scrolls under the OS keyboard.
+   A picked tile turns the instruction headline-red, matching the tile ring. */
 @container app (max-width: 380px) {
   .keyboard {
     gap: 4px;
@@ -801,7 +828,27 @@
   .native-type {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.4rem;
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    margin: 1rem -0.5rem 0;
+    padding: 0.6rem 0.5rem calc(0.6rem + env(safe-area-inset-bottom));
+    background: var(--bg);
+    border-top: 2px solid var(--ink);
+  }
+
+  .native-label {
+    font-size: 13px;
+  }
+
+  .native-type.has-pick .native-label {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .native-input {
+    padding: 0.65rem 0.75rem;
   }
 }
 

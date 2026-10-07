@@ -16,9 +16,11 @@ let board = (~pending=None, ~shake=None, ()) =>
       pending
       navMode=false
       activeTile=None
+      pickedTile=None
       authenticated=false
       lang=#en
       onPlace={(_, _, _) => ()}
+      onPick={(_, _) => ()}
     />
   </DndKit.DndContext>
 
@@ -49,5 +51,88 @@ describe("Board", () => {
     let r = render(board())
     t->expect(r->container->querySelectorAll(".shake")->length)->Expect.toBe(0)
     t->expect(r->container->querySelectorAll(".tile-rejected")->length)->Expect.toBe(0)
+  })
+
+  test("a picked tile wears the cursor ring even outside arrow-key mode", t => {
+    let r = render(
+      <DndKit.DndContext>
+        <Board
+          pairs
+          direction="it"
+          selected=""
+          dragging=false
+          shake=None
+          pending=None
+          navMode=false
+          activeTile=None
+          pickedTile=Some((0, 1))
+          authenticated=false
+          lang=#en
+          onPlace={(_, _, _) => ()}
+          onPick={(_, _) => ()}
+        />
+      </DndKit.DndContext>,
+    )
+    t->expect(r->container->querySelectorAll(".tile.open.tile-cursor")->length)->Expect.toBe(1)
+  })
+
+  test("tapping with no letter in hand picks the tile instead of placing", t => {
+    let picked = ref(None)
+    let placed = ref(false)
+    let r = render(
+      <DndKit.DndContext>
+        <Board
+          pairs
+          direction="it"
+          selected=""
+          dragging=false
+          shake=None
+          pending=None
+          navMode=false
+          activeTile=None
+          pickedTile=None
+          authenticated=false
+          lang=#en
+          onPlace={(_, _, _) => placed := true}
+          onPick={(wi, pos) => picked := Some((wi, pos))}
+        />
+      </DndKit.DndContext>,
+    )
+    switch r->container->querySelectorAll(".tile.open")->Belt.Array.get(0) {
+    | Some(tile) => fireEvent->click(tile)
+    | None => ()
+    }
+    t->expect(picked.contents)->Expect.toEqual(Some((0, 1)))
+    t->expect(placed.contents)->Expect.toBe(false)
+  })
+
+  test("tapping with a letter in hand still places it", t => {
+    let picked = ref(false)
+    let placed = ref(None)
+    let r = render(
+      <DndKit.DndContext>
+        <Board
+          pairs
+          direction="it"
+          selected="A"
+          dragging=false
+          shake=None
+          pending=None
+          navMode=false
+          activeTile=None
+          pickedTile=None
+          authenticated=false
+          lang=#en
+          onPlace={(letter, wi, pos) => placed := Some((letter, wi, pos))}
+          onPick={(_, _) => picked := true}
+        />
+      </DndKit.DndContext>,
+    )
+    switch r->container->querySelectorAll(".tile.open")->Belt.Array.get(0) {
+    | Some(tile) => fireEvent->click(tile)
+    | None => ()
+    }
+    t->expect(placed.contents)->Expect.toEqual(Some(("A", 0, 1)))
+    t->expect(picked.contents)->Expect.toBe(false)
   })
 })

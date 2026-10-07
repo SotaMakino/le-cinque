@@ -43,3 +43,15 @@ type domNode
 @send @return(nullable) external closest: (domNode, string) => option<domNode> = "closest"
 @send external blur: domNode => unit = "blur"
 @val @scope("document") external activeElement: domNode = "activeElement"
+
+// focusing the narrow native input after a tile is picked, so the OS keyboard
+// opens straight onto the chosen slot. No-op when the input isn't rendered
+// (roomy layouts hide it with display: none).
+@val @scope("document")
+external getById: string => Js.Nullable.t<Dom.element> = "getElementById"
+@send external focusEl: Dom.element => unit = "focus"
+let focusNativeInput = () =>
+  switch getById("native-letter")->Js.Nullable.toOption {
+  | Some(el) => el->focusEl
+  | None => ()
+  }
