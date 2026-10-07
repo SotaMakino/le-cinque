@@ -830,7 +830,7 @@ func TestRecordReviews_TalliesTheStudyDay(t *testing.T) {
 
 	// and it surfaces on the activity calendar's final (today) cell, with the
 	// window starting on a Sunday
-	start, cal, err := h.activityCalendar("ann")
+	start, cal, err := h.activityCalendar("ann", requestToday(""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1018,5 +1018,127 @@ func TestNextWords_FillsTheRoundWhenGuardsCollide(t *testing.T) {
 	}
 	if len(ws) != WordsPerRound {
 		t.Errorf("expected a full round even under the guards, got %v", ws)
+	}
+}
+
+// The activity calendar must end on the player's local today, not on the
+// server's UTC date. Oct 7 01:00 in Rome is still Oct 6 23:00 UTC: a window
+// ending on the server date has no cell for Oct 7, so today's play is
+// invisible — the reported bug.
+func TestMe_CalendarEndsOnClientToday(t *testing.T) {
+	h := setupGames(t)
+	// Tuesday Oct 6 23:00 UTC = Wednesday Oct 7 01:00 in Rome (UTC+2)
+	freezeClock(t, time.Date(2026, 10, 6, 23, 0, 0, 0, time.UTC))
+
+	if _, err := h.DB.Exec(
+		`INSERT INTO study_days (username, day, count) VALUES ('ann', '2026-10-07', 5)`); err != nil {
+		t.Fatal(err)
+	}
+
+	decodeCal := func(target string) (string, []int) {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		h.Me(rec, asUser("ann", "GET", target, ""))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s: expected 200, got %d", target, rec.Code)
+		}
+		var body struct {
+			Activity      []int  `json:"activity"`
+			ActivityStart string `json:"activityStart"`
+		}
+		if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		return body.ActivityStart, body.Activity
+	}
+	endDay := func(start string, cal []int) string {
+		t.Helper()
+		s, err := time.Parse("2006-01-02", start)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s.AddDate(0, 0, len(cal)-1).Format("2006-01-02")
+	}
+
+	// with the client's local today the window ends Oct 7 and today's five
+	// retrievals sit on the final cell
+	start, cal := decodeCal("/me?today=2026-10-07")
+	if got := endDay(start, cal); got != "2026-10-07" {
+		t.Errorf("expected the client-aware window to end 2026-10-07, got %s", got)
+	}
+	if last := cal[len(cal)-1]; last != 5 {
+		t.Errorf("expected today's cell to read 5, got %d", last)
+	}
+
+	// without it the server falls back to its own UTC date: the window ends
+	// Oct 6 and the Oct 7 row is nowhere on the grid
+	start, cal = decodeCal("/me")
+	if got := endDay(start, cal); got != "2026-10-06" {
+		t.Errorf("expected the fallback window to end 2026-10-06, got %s", got)
+	}
+	if last := cal[len(cal)-1]; last != 0 {
+		t.Errorf("expected the fallback's final cell (Oct 6) to read 0, got %d", last)
+	}
+}
+
+func TestRequestToday_ClampsFarDates(t *testing.T) {
+	setupGames(t)
+	freezeClock(t, time.Date(2026, 10, 6, 23, 0, 0, 0, time.UTC))
+
+	// a day either side of the server date is a plausible timezone: keep it
+	for _, day := range []string{"2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08"} {
+		if got := requestToday(day).Format("2006-01-02"); got != day {
+			t.Errorf("expected %s to survive, got %s", day, got)
+		}
+	}
+	// anything further is a broken clock or abuse: fall back to the server date
+	for _, day := range []string{"2026-10-03", "2026-10-09", "2030-01-01", "not-a-day", ""} {
+		if got := requestToday(day).Format("2006-01-02"); got != "2026-10-06" {
+			t.Errorf("expected %q to fall back to 2026-10-06, got %s", day, got)
+		}
+	}
+}
+
+// A round finished after midnight local must tally on the local day, not on
+// yesterday's server-UTC date.
+func TestGuess_TalliesClientLocalDay(t *testing.T) {
+	h := setupGames(t)
+	freezeClock(t, time.Date(2026, 10, 6, 23, 0, 0, 0, time.UTC))
+
+	placeToday := func(user, letter string, word, pos int, today string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		body := fmt.Sprintf(`{"guess":%q,"word":%d,"position":%d,"today":%q}`,
+			letter, word, pos, today)
+		h.Guess(rec, asUser(user, "POST", "/game/guess", body))
+		return rec
+	}
+
+	startRound(t, h, "ann", testRound)
+	placed := map[string]bool{}
+	for wi, w := range testRound {
+		for i := 0; i < len(english[w]); i++ {
+			l := string(english[w][i])
+			if !placed[l] {
+				placed[l] = true
+				placeToday("ann", l, wi, i, "2026-10-07")
+			}
+		}
+	}
+
+	var count int
+	if err := h.DB.QueryRow(
+		"SELECT count FROM study_days WHERE username = 'ann' AND day = '2026-10-07'::date").Scan(&count); err != nil {
+		t.Fatalf("no study_days row for the client's local day: %v", err)
+	}
+	if count != len(testRound) {
+		t.Errorf("expected %d retrievals on 2026-10-07, got %d", len(testRound), count)
+	}
+	var n int
+	if err := h.DB.QueryRow(
+		"SELECT COUNT(*) FROM study_days WHERE username = 'ann' AND day = '2026-10-06'::date").Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("expected nothing tallied on the server-UTC day, found %d row(s)", n)
 	}
 }

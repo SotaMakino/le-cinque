@@ -22,18 +22,24 @@ let decodeGame = async (outcome): result<Game.game, ApiClient.apiError> =>
   | Error(e) => Error(e)
   }
 
+// YYYY-MM-DD in the player's local timezone. The activity calendar is a tally
+// of local days, so the client tells the server which day it is living in —
+// otherwise Oct 7 in Rome is still Oct 6 on a UTC server and today has no cell.
+let localDay = (): string =>
+  %raw(`(() => { const d = new Date(); const m = String(d.getMonth() + 1).padStart(2, "0"); const day = String(d.getDate()).padStart(2, "0"); return d.getFullYear() + "-" + m + "-" + day })()`)
+
 let fetchGame = async (): result<Game.game, ApiClient.apiError> =>
   await decodeGame(await ApiClient.request("/game"))
 
 let fetchMe = async (): result<Game.me, ApiClient.apiError> =>
-  await decode(await ApiClient.request("/me"))
+  await decode(await ApiClient.request("/me?today=" ++ localDay()))
 
 let guess = async (~letter, ~word, ~position): result<Game.game, ApiClient.apiError> =>
   await decodeGame(
     await ApiClient.request(
       "/game/guess",
       ~method_="POST",
-      ~body={"guess": letter, "word": word, "position": position},
+      ~body={"guess": letter, "word": word, "position": position, "today": localDay()},
     ),
   )
 

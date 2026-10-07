@@ -115,6 +115,41 @@ func (h *Games) latest(user string) (*game, error) {
 	return g, err
 }
 
+// clientDay parses a YYYY-MM-DD date the client sends as its local today.
+// The calendar date's weekday is the same worldwide, so UTC midnight carries
+// the right weekday for window alignment and the right key for study_days.
+func parseClientDay(s string) (time.Time, bool) {
+	if len(s) != 10 {
+		return time.Time{}, false
+	}
+	t, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		return time.Time{}, false
+	}
+	if t.Format("2006-01-02") != s {
+		return time.Time{}, false
+	}
+	return t, true
+}
+
+// requestToday returns the client's local today when it sends a sane ?today=
+// (or body) date, otherwise the server's today. Clamped to ±2 days of the
+// server date: timezone offsets max out at 14h, so anything further is a broken
+// clock or abuse, and the server date is the safer bucket.
+func requestToday(clientDay string) time.Time {
+	at := now()
+	serverDay := time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, time.UTC)
+	t, ok := parseClientDay(clientDay)
+	if !ok {
+		return serverDay
+	}
+	diff := int(t.Sub(serverDay).Hours() / 24)
+	if diff < -2 || diff > 2 {
+		return serverDay
+	}
+	return t
+}
+
 // review is a player's record for one word: when it is due again, when they
 // last saw it, and how many times running they have retrieved it.
 type review struct {
@@ -147,7 +182,11 @@ func (h *Games) reviews(user string) (map[string]review, error) {
 // letter across every word on the board, so a word can finish fully revealed
 // without ever having been recalled. Those reset to a streak of zero and come
 // due again at the next session.
-func (h *Games) recordReviews(user string, g *game, attempts []attempt) error {
+//
+// studyDay is the client's local YYYY-MM-DD for the study_days tally, so a
+// round finished after midnight local lands on today's cell rather than on
+// yesterday's server-UTC date.
+func (h *Games) recordReviews(user string, g *game, attempts []attempt, studyDay string) error {
 	revs, err := h.reviews(user)
 	if err != nil {
 		return err
@@ -195,12 +234,14 @@ func (h *Games) recordReviews(user string, g *game, attempts []attempt) error {
 		}
 	}
 	// tally the day's genuine retrievals for the activity calendar; a round in
-	// which the player recalled nothing leaves no mark on the grid
+	// which the player recalled nothing leaves no mark on the grid. The day
+	// bucket is an explicit YYYY-MM-DD string so Postgres never has to cast a
+	// timestamptz under its session TimeZone.
 	if len(retrieved) > 0 {
 		if _, err := h.DB.Exec(
 			`INSERT INTO study_days (username, day, count) VALUES ($1, $2::date, $3)
 			 ON CONFLICT (username, day) DO UPDATE SET count = study_days.count + EXCLUDED.count`,
-			user, at, len(retrieved)); err != nil {
+			user, studyDay, len(retrieved)); err != nil {
 			return err
 		}
 	}
@@ -213,12 +254,14 @@ func (h *Games) recordReviews(user string, g *game, attempts []attempt) error {
 // 7-day weeks), so the dense slice the client receives aligns cleanly into
 // weekday rows; the start day lets the client date each cell. No-study days
 // are 0.
-func (h *Games) activityCalendar(user string) (time.Time, []int, error) {
-	at := now()
-	today := time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, at.Location())
+//
+// today is the client's local day (see requestToday): the grid must end on
+// the day the player is living in, not on the server's UTC date, or players
+// east of UTC wake up to a calendar with no cell for today.
+func (h *Games) activityCalendar(user string, today time.Time) (time.Time, []int, error) {
 	start := today.AddDate(0, 0, -int(today.Weekday())-7*12)
 	rows, err := h.DB.Query(
-		"SELECT day, count FROM study_days WHERE username = $1 AND day >= $2::date", user, start)
+		"SELECT day, count FROM study_days WHERE username = $1 AND day >= $2::date", user, start.Format("2006-01-02"))
 	if err != nil {
 		return start, nil, err
 	}
@@ -513,20 +556,23 @@ func (h *Games) Me(w http.ResponseWriter, r *http.Request) {
 	// retrieved on each of the recent days. The window starts on a Sunday so the
 	// client can chunk the dense array into weekday-aligned columns; days with no
 	// study come back as 0. daysBack covers 13 weeks plus the current partial week.
-	start, activity, err := h.activityCalendar(user)
+	// The window ends on the client's local today (?today=YYYY-MM-DD), not the
+	// server's UTC date.
+	today := requestToday(r.URL.Query().Get("today"))
+	start, activity, err := h.activityCalendar(user, today)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
 	}
 	// a year-to-date tally shown beneath the calendar: every genuine retrieval
-	// since 1 January. Unlike the 13-week grid this spans the whole current year,
-	// so it needs its own sum rather than adding up the window's cells
-	at := now()
-	yearStart := time.Date(at.Year(), 1, 1, 0, 0, 0, 0, at.Location())
+	// since 1 January in the client's local year. Unlike the 13-week grid this
+	// spans the whole current year, so it needs its own sum rather than adding
+	// up the window's cells
+	yearStart := time.Date(today.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
 	var yearWords int
 	if err := h.DB.QueryRow(
 		"SELECT COALESCE(SUM(count), 0) FROM study_days WHERE username = $1 AND day >= $2::date",
-		user, yearStart).Scan(&yearWords); err != nil {
+		user, yearStart.Format("2006-01-02")).Scan(&yearWords); err != nil {
 		writeError(w, http.StatusInternalServerError, "query failed")
 		return
 	}
@@ -669,6 +715,7 @@ func (h *Games) Guess(w http.ResponseWriter, r *http.Request) {
 		Guess    string `json:"guess"`
 		Word     int    `json:"word"`     // 0-based pair index
 		Position int    `json:"position"` // 0-based tile index within the word
+		Today    string `json:"today"`    // client's local YYYY-MM-DD for the activity tally
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
@@ -745,8 +792,11 @@ func (h *Games) Guess(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// schedule each word of the round on its own, by what the player
-		// actually retrieved rather than by how the round as a whole ended
-		if err := h.recordReviews(user, g, attempts); err != nil {
+		// actually retrieved rather than by how the round as a whole ended.
+		// The tally lands on the client's local day so post-midnight play
+		// shows on today's cell.
+		studyDay := requestToday(body.Today).Format("2006-01-02")
+		if err := h.recordReviews(user, g, attempts, studyDay); err != nil {
 			writeError(w, http.StatusInternalServerError, "could not record the round")
 			return
 		}

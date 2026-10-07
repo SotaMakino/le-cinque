@@ -26,3 +26,35 @@ describe("AccountMenu.shades", () => {
     t->expect(shade(5))->Expect.toBe("4")
   })
 })
+
+// The grid must end on the viewer's local today: a UTC-based window leaves
+// players east of UTC with no cell for today and players west of UTC with an
+// empty future cell.
+describe("AccountMenu.toLocalToday", () => {
+  // local YYYY-MM-DD n days ago, via noon to dodge DST edges
+  let dayOffset: int => string = %raw(`(n) => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n); const m = String(d.getMonth() + 1).padStart(2, "0"); const day = String(d.getDate()).padStart(2, "0"); return d.getFullYear() + "-" + m + "-" + day }`)
+
+  test("a window ending today is left alone", t => {
+    let days = [1, 0, 3, 0, 0, 2, 0, 0, 0, 4]
+    t->expect(AccountMenu.toLocalToday(days, dayOffset(9)))->Expect.toEqual(days)
+  })
+
+  test("a window ending yesterday gains today's empty cell", t => {
+    let days = [1, 0, 3, 0, 0, 2, 0, 0, 0, 4]
+    t
+    ->expect(AccountMenu.toLocalToday(days, dayOffset(10)))
+    ->Expect.toEqual(Belt.Array.concat(days, [0]))
+  })
+
+  test("a window ending tomorrow loses its future cell", t => {
+    let days = [1, 0, 3, 0, 0, 2, 0, 0, 0, 4]
+    t
+    ->expect(AccountMenu.toLocalToday(days, dayOffset(8)))
+    ->Expect.toEqual(Belt.Array.slice(days, ~offset=0, ~len=9))
+  })
+
+  test("a window far from today is left alone rather than blown up", t => {
+    let days = [1, 0, 3, 0, 0, 2, 0, 0, 0, 4]
+    t->expect(AccountMenu.toLocalToday(days, dayOffset(30)))->Expect.toEqual(days)
+  })
+})

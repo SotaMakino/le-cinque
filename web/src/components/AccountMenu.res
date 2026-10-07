@@ -7,6 +7,42 @@ external toLocaleDate: (
   {"day": string, "month": string, "year": string, "timeZone": string},
 ) => string = "toLocaleDateString"
 
+// YYYY-MM-DD in the viewer's local timezone — the day the player is living
+// in, which can differ from the server's UTC date around midnight.
+let localDay = (): string =>
+  %raw(`(() => { const d = new Date(); const m = String(d.getMonth() + 1).padStart(2, "0"); const day = String(d.getDate()).padStart(2, "0"); return d.getFullYear() + "-" + m + "-" + day })()`)
+
+// The grid must end on the viewer's local today. A window that still ends on
+// the server's UTC date leaves players east of UTC with no cell for today —
+// Oct 7 in Rome is still Oct 6 in UTC — and players west of UTC with an empty
+// future cell. So pad missing days with zeros or trim future ones. Capped at
+// two days: timezone offsets max out at 14h, so anything more is a broken
+// clock, and the server's window is the safer thing to show.
+let toLocalToday = (activity: array<int>, activityStart: string): array<int> => {
+  let n = Belt.Array.length(activity)
+  if n == 0 || Js.String2.length(activityStart) != 10 {
+    activity
+  } else {
+    let startMs = Js.Date.fromString(activityStart ++ "T00:00:00Z")->Js.Date.getTime
+    let today = localDay()
+    let todayMs = Js.Date.fromString(today ++ "T00:00:00Z")->Js.Date.getTime
+    if Js.Float.isNaN(startMs) || Js.Float.isNaN(todayMs) {
+      activity
+    } else {
+      let endMs = startMs +. (n - 1)->Belt.Int.toFloat *. 86400000.
+      let raw = (todayMs -. endMs) /. 86400000.
+      // round half away from zero to whole days (both ends are UTC midnights)
+      let diff = raw >= 0. ? Belt.Float.toInt(raw +. 0.5) : -Belt.Float.toInt(-.raw +. 0.5)
+      if diff > 0 && diff <= 2 {
+        Belt.Array.concat(activity, Belt.Array.make(diff, 0))
+      } else if diff < 0 && diff >= -2 {
+        Belt.Array.slice(activity, ~offset=0, ~len=n + diff)
+      } else {
+        activity
+      }
+    }
+  }
+}
 // Fixed cut-offs flatten the calendar out as soon as one keen day dwarfs the
 // rest — 6, 10 and 40 words all landed on the darkest square. So the four
 // shades follow the quartiles of the days actually practised: the busiest day
@@ -69,16 +105,20 @@ let make = (
         <div className="menu-cal">
           {
             // dense daily counts starting on a Sunday: chunk into
-            // week columns, one cell per weekday (Sun→Sat)
-            let cols = (Belt.Array.length(activity) + 6) / 7
-            let shadeOf = shades(activity)
+            // week columns, one cell per weekday (Sun→Sat). The window is
+            // stretched to the viewer's local today so there is always a cell
+            // for the day being lived in, even if the server's UTC window ends
+            // a day early.
+            let days = toLocalToday(activity, activityStart)
+            let cols = (Belt.Array.length(days) + 6) / 7
+            let shadeOf = shades(days)
             let locale = lang == #it ? "it-IT" : "en-US"
             let startMs = Js.Date.fromString(activityStart ++ "T00:00:00Z")->Js.Date.getTime
             Belt.Array.makeBy(cols, col =>
               <div className="cal-week" key={col->Belt.Int.toString}>
                 {Belt.Array.makeBy(7, row => {
                   let i = col * 7 + row
-                  switch Belt.Array.get(activity, i) {
+                  switch Belt.Array.get(days, i) {
                   | Some(c) =>
                     let lvl = shadeOf(c)
                     // "3 words · 24 Jul 2026" — the day's tally and date
@@ -114,7 +154,7 @@ let make = (
             " " ++
             tr.inYear ++
             " " ++
-            Js.Date.make()->Js.Date.getUTCFullYear->Belt.Float.toInt->Belt.Int.toString,
+            Js.Date.make()->Js.Date.getFullYear->Belt.Float.toInt->Belt.Int.toString,
           )}
         </p>
       </div>
